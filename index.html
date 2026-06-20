@@ -50,6 +50,7 @@
   .block-time { color: #aaa; font-size: 0.8rem; margin-left: auto; white-space: nowrap; }
 
   #btn-pause { width: 100%; padding: 18px; font-size: 1.2rem; font-weight: 700; background: #333; border: none; border-radius: 14px; color: #fff; cursor: pointer; flex-shrink: 0; }
+  #btn-finish { width: 100%; padding: 14px; font-size: 1rem; font-weight: 600; background: transparent; border: 1px solid #555; border-radius: 14px; color: #aaa; cursor: pointer; flex-shrink: 0; margin-top: 8px; }
 
   /* PAUSE OVERLAY */
   #pause-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,.85); flex-direction: column; justify-content: center; align-items: center; gap: 16px; padding: 32px; z-index: 10; }
@@ -100,6 +101,7 @@
   <p class="progress-label" id="prog-label">0 / 30 min</p>
   <div class="blocks-list" id="blocks-list"></div>
   <button id="btn-pause">&#10074;&#10074; Pause</button>
+  <button id="btn-finish">&#9724; Finish workout</button>
 </div>
 
 <!-- PAUSE OVERLAY -->
@@ -275,6 +277,7 @@ function finishWorkout() {
 
 // ---------- PAUSE ----------
 $('btn-pause').onclick = () => $('pause-overlay').classList.add('active');
+$('btn-finish').onclick = () => { clearInterval(ticker); releaseWakeLock(); finishWorkout(); };
 $('btn-resume').onclick = () => $('pause-overlay').classList.remove('active');
 $('btn-restart').onclick = () => {
   $('pause-overlay').classList.remove('active');
