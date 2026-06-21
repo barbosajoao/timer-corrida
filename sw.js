@@ -1,8 +1,26 @@
-const CACHE_NAME = 'corrida-v1';
-const ASSETS = ['./index.html', './manifest.json'];
+const CACHE_NAME = 'corrida-v2';
+const ASSETS = [
+  './index.html',
+  './manifest.json',
+  './sounds/run.mp3',
+  './sounds/walk.mp3',
+  './sounds/done.mp3',
+  './data/programs.json',
+  './data/c25k_16week.json',
+  './data/10k_16week.json'
+];
 
 self.addEventListener('install', e => {
   e.waitUntil(caches.open(CACHE_NAME).then(c => c.addAll(ASSETS)));
+  self.skipWaiting();
+});
+
+self.addEventListener('activate', e => {
+  e.waitUntil(
+    caches.keys().then(keys =>
+      Promise.all(keys.filter(k => k !== CACHE_NAME).map(k => caches.delete(k)))
+    ).then(() => self.clients.claim())
+  );
 });
 
 self.addEventListener('fetch', e => {

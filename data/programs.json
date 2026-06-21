@@ -1,0 +1,18 @@
+{
+  "programs": [
+    {
+      "id": "c25k_16week",
+      "name": "Couch to 5K",
+      "subtitle": "16 semanas · do sofá aos 5K",
+      "available": true,
+      "file": "./data/c25k_16week.json"
+    },
+    {
+      "id": "10k_16week",
+      "name": "10K",
+      "subtitle": "16 semanas",
+      "available": false,
+      "file": null
+    }
+  ]
+}
