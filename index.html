@@ -211,10 +211,6 @@ let wakeLock = null;
 const $ = id => document.getElementById(id);
 
 // ===================== HELPERS =====================
-function t2s(t) {
-  const [m, s] = t.split(':').map(Number);
-  return m * 60 + s;
-}
 function fmt(s) {
   const m = Math.floor(s / 60), ss = s % 60;
   return m + ':' + String(ss).padStart(2, '0');
@@ -234,42 +230,44 @@ function deriveLabel(block, i, total) {
   return (block.type === 'run' ? 'Run' : 'Walk') + ' (' + fmtDur(dur) + ')';
 }
 
-// converte os blocos crus do JSON (["MM:SS","MM:SS","type"]) em objetos com
-// start/end em segundos, label derivado e display "MM:SS-MM:SS"
+// converte os blocos crus do JSON (["type", duracaoEmSegundos]) em objetos com
+// start/end em segundos (acumulando as duracoes), label derivado e display
+// "MM:SS-MM:SS"
 function buildWeek(week) {
   const n = week.blocos.length;
+  let acc = 0;
   const blocos = week.blocos.map((raw, i) => {
-    const start = t2s(raw[0]);
-    const end = t2s(raw[1]);
-    const type = raw[2];
+    const type = raw[0];
+    const dur = Number(raw[1]);
+    const start = acc;
+    const end = acc + dur;
+    acc = end;
     return {
       start, end, type,
       label: deriveLabel({ start, end, type }, i, n),
-      display: raw[0] + '-' + raw[1]
+      display: fmt(start) + '-' + fmt(end)
     };
   });
   return { n: week.n, fase: week.fase, total: week.total, blocos };
 }
 
 // ===================== VALIDATION =====================
-// retorna null se ok, ou uma string descrevendo o primeiro erro encontrado
+// retorna null se ok, ou uma string descrevendo o primeiro erro encontrado.
+// No formato por-duracao nao existem buracos/sobreposicao por construcao;
+// basta garantir que cada bloco tenha tipo valido e duracao positiva.
 function validateProgram(prog) {
   if (!prog.weeks || prog.weeks.length === 0) return 'Programa sem semanas.';
   for (const w of prog.weeks) {
     if (!w.blocos || w.blocos.length === 0)
       return 'Semana ' + w.n + ' sem blocos.';
-    let prevEnd = null;
     for (let i = 0; i < w.blocos.length; i++) {
       const raw = w.blocos[i];
-      const start = t2s(raw[0]);
-      const end = t2s(raw[1]);
-      if (end <= start)
-        return 'Semana ' + w.n + ', bloco ' + (i + 1) + ': fim <= inicio (' + raw[0] + '-' + raw[1] + ').';
-      if (prevEnd !== null && start !== prevEnd) {
-        const kind = start > prevEnd ? 'buraco' : 'sobreposicao';
-        return 'Semana ' + w.n + ', bloco ' + (i + 1) + ': ' + kind + ' (esperado inicio em ' + fmt(prevEnd) + ', veio ' + raw[0] + ').';
-      }
-      prevEnd = end;
+      const type = raw[0];
+      const dur = Number(raw[1]);
+      if (type !== 'run' && type !== 'walk')
+        return 'Semana ' + w.n + ', bloco ' + (i + 1) + ': tipo invalido (' + type + ').';
+      if (!Number.isFinite(dur) || dur <= 0)
+        return 'Semana ' + w.n + ', bloco ' + (i + 1) + ': duracao invalida (' + raw[1] + ').';
     }
   }
   return null;

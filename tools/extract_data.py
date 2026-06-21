@@ -122,7 +122,8 @@ def build_c25k():
     weeks = []
     for s in semanas:
         raw = process_blocks(s["blocos"])
-        blocos = [[s2disp(start), s2disp(end), tipo] for (start, end, tipo) in raw]
+        # novo formato: [tipo, duracao_em_segundos]
+        blocos = [[tipo, end - start] for (start, end, tipo) in raw]
         weeks.append({
             "n": s["n"],
             "fase": s["fase"],

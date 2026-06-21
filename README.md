@@ -36,13 +36,14 @@ programas em tempo de execução via `fetch` dos arquivos em `data/`.
      "name": "Nome do treino",
      "weeks": [
        { "n": 1, "fase": "Fase 1", "total": "X min running",
-         "blocos": [ ["00:00","05:00","walk"], ["05:00","06:00","run"], "..." ] }
+         "blocos": [ ["walk", 300], ["run", 60], ["walk", 120], "..." ] }
      ]
    }
    ```
-   - `blocos` são pares `["início","fim","tipo"]` em `MM:SS`. O tipo é `run` ou `walk`.
-   - Os blocos devem ser contínuos (o fim de um é o início do próximo), sem
-     buracos nem sobreposição. O site valida isso ao carregar e avisa se houver erro.
+   - `blocos` são pares `["tipo", duraçãoEmSegundos]`. O tipo é `run` ou `walk`.
+   - Como cada bloco é uma duração, os tempos absolutos são calculados pelo site
+     acumulando as durações — não há como criar buracos ou sobreposição. O site
+     valida apenas que o tipo é válido e a duração é positiva.
    - Os rótulos ("Run (2 min)", "Cool-down walk (3 min)") são **derivados**
      automaticamente dos tempos — não precisam ser escritos.
 

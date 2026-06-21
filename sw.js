@@ -1,4 +1,4 @@
-const CACHE_NAME = 'corrida-v2';
+const CACHE_NAME = 'corrida-v3';
 const ASSETS = [
   './index.html',
   './manifest.json',
