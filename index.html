@@ -97,6 +97,8 @@
   .hist-row .hist-meta { color: #aaa; font-size: 0.85rem; text-align: right; }
   .hist-action-advance { color: #4fc; font-size: 0.8rem; font-weight: 600; }
   .hist-action-repeat   { color: #f90; font-size: 0.8rem; font-weight: 600; }
+  .hist-del { margin-left: 14px; flex-shrink: 0; width: 34px; height: 34px; border-radius: 50%; background: #2a2a2a; border: none; color: #888; font-size: 0.9rem; cursor: pointer; }
+  .hist-del:hover { background: #3a1010; color: #e83535; }
   #btn-history { background: transparent; border: none; color: #555; font-size: 0.85rem; cursor: pointer; text-decoration: underline; }
   #btn-back-history { padding: 14px; font-size: 1rem; background: #333; border: none; border-radius: 14px; color: #fff; cursor: pointer; }
 
@@ -419,21 +421,39 @@ $('btn-change-program').onclick = () => showPrograms();
 function showHistory() {
   hideAllScreens();
   $('screen-history').classList.add('active');
+  renderHistory();
+}
+
+function renderHistory() {
   const hist = getProgress(program.id).history || [];
   const list = $('history-list');
   if (hist.length === 0) {
     list.innerHTML = '<p style="color:#555;text-align:center;margin-top:40px">No sessions yet.</p>';
     return;
   }
-  list.innerHTML = hist.map(h => `
+  list.innerHTML = hist.map((h, i) => `
     <div class="hist-row">
       <div>
         <div class="hist-week">Week ${h.week}</div>
         <div class="hist-action-${h.action}">${h.action === 'advance' ? 'Advanced to next week' : 'Repeat week'}</div>
       </div>
       <div class="hist-meta">${h.date}<br>${h.dur}</div>
+      <button class="hist-del" data-idx="${i}" aria-label="Delete entry">&#10005;</button>
     </div>`).join('');
 }
+
+function deleteHistory(idx) {
+  const p = getProgress(program.id);
+  if (!p.history || idx < 0 || idx >= p.history.length) return;
+  p.history.splice(idx, 1);
+  setProgress(program.id, p);
+  renderHistory();
+}
+
+$('history-list').onclick = (e) => {
+  const btn = e.target.closest('.hist-del');
+  if (btn) deleteHistory(parseInt(btn.dataset.idx));
+};
 $('btn-history').onclick = showHistory;
 $('btn-back-history').onclick = () => showSelect();
 
