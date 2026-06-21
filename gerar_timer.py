@@ -221,6 +221,14 @@ html = f"""<!DOCTYPE html>
   #btn-restart {{ background: #333; color: #fff; }}
   #btn-quit {{ background: #222; color: #aaa; }}
 
+  /* FINISH CONFIRM OVERLAY */
+  #finish-overlay {{ display: none; position: fixed; inset: 0; background: rgba(0,0,0,.85); flex-direction: column; justify-content: center; align-items: center; gap: 16px; padding: 32px; z-index: 10; }}
+  #finish-overlay.active {{ display: flex; }}
+  #finish-overlay h2 {{ font-size: 2rem; text-align: center; }}
+  #finish-overlay button {{ width: 100%; max-width: 320px; padding: 18px; font-size: 1.1rem; font-weight: 700; border: none; border-radius: 14px; cursor: pointer; }}
+  #btn-finish-confirm {{ background: #e83535; color: #fff; }}
+  #btn-finish-cancel {{ background: #333; color: #fff; }}
+
   /* DONE */
   #screen-done {{ justify-content: center; align-items: center; gap: 20px; text-align: center; }}
   #screen-done h1 {{ font-size: 2.4rem; font-weight: 900; }}
@@ -290,6 +298,13 @@ html = f"""<!DOCTYPE html>
   <button id="btn-resume">&#9654; Resume</button>
   <button id="btn-restart">&#8635; Restart</button>
   <button id="btn-quit">&#10005; Quit</button>
+</div>
+
+<!-- FINISH CONFIRM OVERLAY -->
+<div id="finish-overlay">
+  <h2>Finish workout?</h2>
+  <button id="btn-finish-confirm">&#9724; Finish</button>
+  <button id="btn-finish-cancel">&#8617; Cancel</button>
 </div>
 
 <!-- SCREEN: DONE -->
@@ -487,7 +502,14 @@ function finishWorkout() {{
 
 // ---------- PAUSE ----------
 $('btn-pause').onclick = () => $('pause-overlay').classList.add('active');
-$('btn-finish').onclick = () => {{ clearInterval(ticker); releaseWakeLock(); finishWorkout(); }};
+$('btn-finish').onclick = () => $('finish-overlay').classList.add('active');
+$('btn-finish-confirm').onclick = () => {{
+  $('finish-overlay').classList.remove('active');
+  clearInterval(ticker);
+  releaseWakeLock();
+  finishWorkout();
+}};
+$('btn-finish-cancel').onclick = () => $('finish-overlay').classList.remove('active');
 $('btn-resume').onclick = () => $('pause-overlay').classList.remove('active');
 $('btn-restart').onclick = () => {{
   $('pause-overlay').classList.remove('active');
