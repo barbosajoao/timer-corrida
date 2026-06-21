@@ -81,6 +81,14 @@
   #btn-finish-confirm { background: #e83535; color: #fff; }
   #btn-finish-cancel { background: #333; color: #fff; }
 
+  /* DELETE HISTORY CONFIRM OVERLAY */
+  #del-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,.85); flex-direction: column; justify-content: center; align-items: center; gap: 16px; padding: 32px; z-index: 10; }
+  #del-overlay.active { display: flex; }
+  #del-overlay h2 { font-size: 1.8rem; text-align: center; }
+  #del-overlay button { width: 100%; max-width: 320px; padding: 18px; font-size: 1.1rem; font-weight: 700; border: none; border-radius: 14px; cursor: pointer; }
+  #btn-del-confirm { background: #e83535; color: #fff; }
+  #btn-del-cancel { background: #333; color: #fff; }
+
   /* DONE */
   #screen-done { justify-content: center; align-items: center; gap: 20px; text-align: center; }
   #screen-done h1 { font-size: 2.4rem; font-weight: 900; }
@@ -174,6 +182,13 @@
   <h2>Finish workout?</h2>
   <button id="btn-finish-confirm">&#9724; Finish</button>
   <button id="btn-finish-cancel">&#8617; Cancel</button>
+</div>
+
+<!-- DELETE HISTORY CONFIRM OVERLAY -->
+<div id="del-overlay">
+  <h2>Apagar este registro?</h2>
+  <button id="btn-del-confirm">&#10005; Apagar</button>
+  <button id="btn-del-cancel">&#8617; Cancelar</button>
 </div>
 
 <!-- SCREEN: DONE -->
@@ -450,9 +465,22 @@ function deleteHistory(idx) {
   renderHistory();
 }
 
+let pendingDelIdx = null;
 $('history-list').onclick = (e) => {
   const btn = e.target.closest('.hist-del');
-  if (btn) deleteHistory(parseInt(btn.dataset.idx));
+  if (btn) {
+    pendingDelIdx = parseInt(btn.dataset.idx);
+    $('del-overlay').classList.add('active');
+  }
+};
+$('btn-del-confirm').onclick = () => {
+  $('del-overlay').classList.remove('active');
+  if (pendingDelIdx !== null) deleteHistory(pendingDelIdx);
+  pendingDelIdx = null;
+};
+$('btn-del-cancel').onclick = () => {
+  $('del-overlay').classList.remove('active');
+  pendingDelIdx = null;
 };
 $('btn-history').onclick = showHistory;
 $('btn-back-history').onclick = () => showSelect();
