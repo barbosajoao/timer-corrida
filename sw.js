@@ -1,6 +1,17 @@
-const CACHE_NAME = 'corrida-v5';
+// Service worker — estrategia "stale-while-revalidate".
+//
+// Por que essa estrategia: o app responde na hora a partir do cache (rapido e
+// funciona offline) e, em paralelo, busca a versao nova na rede e atualiza o
+// cache para a PROXIMA abertura. Resultado: nao e mais preciso incrementar o
+// CACHE_NAME a cada mudanca — as alteracoes chegam sozinhas ao recarregar.
+//
+// Quando adicionar um novo arquivo (ex.: data/<novo>.json), inclua-o em ASSETS
+// para que fique disponivel offline desde a primeira vez.
+const CACHE_NAME = 'corrida';
 const ASSETS = [
   './index.html',
+  './styles.css',
+  './app.js',
   './manifest.json',
   './sounds/run.mp3',
   './sounds/walk.mp3',
@@ -24,5 +35,20 @@ self.addEventListener('activate', e => {
 });
 
 self.addEventListener('fetch', e => {
-  e.respondWith(caches.match(e.request).then(r => r || fetch(e.request)));
+  if (e.request.method !== 'GET') return;
+  e.respondWith(
+    caches.open(CACHE_NAME).then(cache =>
+      cache.match(e.request).then(cached => {
+        const network = fetch(e.request).then(res => {
+          // so cacheia respostas validas do mesmo origin
+          if (res && res.status === 200 && res.type === 'basic') {
+            cache.put(e.request, res.clone());
+          }
+          return res;
+        }).catch(() => cached); // offline: usa o cache
+        // responde com o cache imediatamente; atualiza em segundo plano
+        return cached || network;
+      })
+    )
+  );
 });

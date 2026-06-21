@@ -1,0 +1,32 @@
+{
+  "id": "exemplo_treino",
+  "name": "Treino de Exemplo",
+  "weeks": [
+    {
+      "n": 1,
+      "fase": "Fase 1 - Exemplo",
+      "total": "3 min running",
+      "blocos": [
+        ["walk", 300],
+        ["run", 60],
+        ["walk", 120],
+        ["run", 60],
+        ["walk", 120],
+        ["run", 60],
+        ["walk", 180]
+      ]
+    },
+    {
+      "n": 2,
+      "fase": "Fase 1 - Exemplo",
+      "total": "4 min running",
+      "blocos": [
+        ["walk", 300],
+        ["run", 120],
+        ["walk", 120],
+        ["run", 120],
+        ["walk", 180]
+      ]
+    }
+  ]
+}
