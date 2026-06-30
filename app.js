@@ -136,7 +136,7 @@ function addHistory(pid, weekN, action, durationSecs) {
   const date = new Date().toLocaleDateString('pt-BR');
   const dur = Math.floor(durationSecs / 60) + ' min';
   p.history = p.history || [];
-  p.history.unshift({ date, week: weekN, action, dur });
+  p.history.unshift({ date, week: weekN, action, dur, ts: Date.now() });
   setProgress(pid, p);
 }
 
@@ -192,6 +192,45 @@ function showPrograms() {
     btn.onclick = () => selectProgram(p);
     list.appendChild(btn);
   });
+  renderRecentHistory();
+}
+
+// agrega o historico de todos os programas e mostra as 5 sessoes mais recentes
+// na tela inicial. Entradas antigas sem timestamp caem para o parse da data
+// dd/mm/yyyy (sem hora). Entradas mais novas usam o campo ts (ms).
+function recentSessions(limit = 5) {
+  const store = loadStore();
+  const nameById = {};
+  catalog.forEach(p => { nameById[p.id] = p.name; });
+  const all = [];
+  Object.keys(store).forEach(pid => {
+    (store[pid].history || []).forEach(h => {
+      let ts = h.ts;
+      if (ts == null && h.date) {
+        const [d, m, y] = h.date.split('/').map(Number);
+        if (y && m && d) ts = new Date(y, m - 1, d).getTime();
+      }
+      all.push({ ...h, ts: ts || 0, programName: nameById[pid] || pid });
+    });
+  });
+  all.sort((a, b) => b.ts - a.ts);
+  return all.slice(0, limit);
+}
+
+function renderRecentHistory() {
+  const box = $('recent-history');
+  const sessions = recentSessions(5);
+  if (sessions.length === 0) { box.innerHTML = ''; return; }
+  box.innerHTML =
+    '<h3 class="recent-title">Últimas sessões</h3>' +
+    sessions.map(h => `
+      <div class="recent-row">
+        <div>
+          <div class="recent-prog">${h.programName} · Week ${h.week}</div>
+          <div class="hist-action-${h.action}">${h.action === 'advance' ? 'Advanced to next week' : 'Repeat week'}</div>
+        </div>
+        <div class="hist-meta">${h.date}<br>${h.dur}</div>
+      </div>`).join('');
 }
 
 async function selectProgram(p) {

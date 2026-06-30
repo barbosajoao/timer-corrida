@@ -13,6 +13,12 @@ body { background: #111; color: #fff; font-family: sans-serif; height: 100dvh; d
 .program-card .prog-sub { color: #aaa; font-size: 0.9rem; margin-top: 4px; }
 .program-card .prog-badge { display: inline-block; margin-top: 8px; font-size: 0.75rem; color: #f90; font-weight: 600; }
 
+/* RECENT HISTORY (tela inicial) */
+.recent-history { width: 100%; max-width: 380px; margin: 8px auto 0; display: flex; flex-direction: column; gap: 8px; overflow-y: auto; }
+.recent-title { font-size: 0.95rem; font-weight: 700; color: #888; margin-bottom: 2px; }
+.recent-row { background: #1a1a1a; border-radius: 12px; padding: 12px 14px; display: flex; justify-content: space-between; align-items: center; }
+.recent-row .recent-prog { font-weight: 700; font-size: 0.95rem; }
+
 /* SELECT */
 #screen-select { justify-content: center; align-items: center; gap: 20px; }
 .prog-header { color: #777; font-size: 0.85rem; text-align: center; }
