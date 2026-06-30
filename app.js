@@ -276,6 +276,23 @@ function renderSelect() {
   $('sel-total').textContent = w.total;
   const done = doneWeeks(program.id);
   $('saved-note').textContent = done.includes(w.n) ? 'Week ' + w.n + ' completed before' : '';
+  renderSelectRecentHistory();
+}
+
+function renderSelectRecentHistory() {
+  const box = $('select-recent-history');
+  const hist = (getProgress(program.id).history || []).slice(0, 5);
+  if (hist.length === 0) { box.innerHTML = ''; return; }
+  box.innerHTML =
+    '<h3 class="recent-title">Últimas sessões</h3>' +
+    hist.map(h => `
+      <div class="recent-row">
+        <div>
+          <div class="recent-prog">Week ${h.week}</div>
+          <div class="hist-action-${h.action}">${h.action === 'advance' ? 'Advanced to next week' : 'Repeat week'}</div>
+        </div>
+        <div class="hist-meta">${h.date}<br>${h.dur}</div>
+      </div>`).join('');
 }
 
 $('btn-prev').onclick = () => { if (currentWeek > 0) { currentWeek--; renderSelect(); } };
