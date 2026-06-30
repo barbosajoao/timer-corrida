@@ -198,6 +198,24 @@ function showPrograms() {
 // agrega o historico de todos os programas e mostra as 5 sessoes mais recentes
 // na tela inicial. Entradas antigas sem timestamp caem para o parse da data
 // dd/mm/yyyy (sem hora). Entradas mais novas usam o campo ts (ms).
+function daysAgoLabel(dateStr, ts) {
+  let then;
+  if (ts) {
+    then = new Date(ts);
+  } else if (dateStr) {
+    const [d, m, y] = dateStr.split('/').map(Number);
+    then = new Date(y, m - 1, d);
+  } else {
+    return dateStr || '';
+  }
+  const now = new Date();
+  const diffMs = now - then;
+  const days = Math.floor(diffMs / 86400000);
+  if (days === 0) return '(hoje) ' + dateStr;
+  if (days === 1) return '(1d) ' + dateStr;
+  return '(' + days + 'd) ' + dateStr;
+}
+
 function recentSessions(limit = 5) {
   const store = loadStore();
   const nameById = {};
@@ -229,7 +247,7 @@ function renderRecentHistory() {
           <div class="recent-prog">${h.programName} · Week ${h.week}</div>
           <div class="hist-action-${h.action}">${h.action === 'advance' ? 'Advanced to next week' : 'Repeat week'}</div>
         </div>
-        <div class="hist-meta">${h.date}<br>${h.dur}</div>
+        <div class="hist-meta">${daysAgoLabel(h.date, h.ts)}<br>${h.dur}</div>
       </div>`).join('');
 }
 
@@ -291,7 +309,7 @@ function renderSelectRecentHistory() {
           <div class="recent-prog">Week ${h.week}</div>
           <div class="hist-action-${h.action}">${h.action === 'advance' ? 'Advanced to next week' : 'Repeat week'}</div>
         </div>
-        <div class="hist-meta">${h.date}<br>${h.dur}</div>
+        <div class="hist-meta">${daysAgoLabel(h.date, h.ts)}<br>${h.dur}</div>
       </div>`).join('');
 }
 
