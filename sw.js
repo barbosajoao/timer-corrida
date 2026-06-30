@@ -7,7 +7,7 @@
 //
 // Quando adicionar um novo arquivo (ex.: data/<novo>.json), inclua-o em ASSETS
 // para que fique disponivel offline desde a primeira vez.
-const CACHE_NAME = 'corrida';
+const CACHE_NAME = 'corrida-v2';
 const ASSETS = [
   './index.html',
   './styles.css',
