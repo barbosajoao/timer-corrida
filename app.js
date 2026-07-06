@@ -1,6 +1,7 @@
 // ===================== STATE =====================
 const LS_PROGRAM = 'runtimer_program';
 const LS_V2 = 'runtimer_v2';
+const LS_SESSION = 'runtimer_session'; // sessao de treino em andamento (retomar)
 // chaves antigas (apenas para migracao one-shot)
 const LS_OLD_WEEK = 'runtimer_week';
 const LS_OLD_DONE = 'runtimer_done';
@@ -138,6 +139,23 @@ function addHistory(pid, weekN, action, durationSecs) {
   p.history = p.history || [];
   p.history.unshift({ date, week: weekN, action, dur, ts: Date.now() });
   setProgress(pid, p);
+}
+
+// ===================== SESSAO EM ANDAMENTO (retomar) =====================
+// Guarda a sessao ativa para retomar caso o app feche/abra durante um treino.
+// Estrutura: { programId, weekIndex, startTime (ms epoch) }.
+function saveSession(programId, weekIndex, startTime) {
+  localStorage.setItem(LS_SESSION, JSON.stringify({ programId, weekIndex, startTime }));
+}
+function clearSession() {
+  localStorage.removeItem(LS_SESSION);
+}
+function loadSession() {
+  try {
+    return JSON.parse(localStorage.getItem(LS_SESSION) || 'null');
+  } catch (e) {
+    return null;
+  }
 }
 
 // migracao one-shot do formato antigo (global) -> c25k_16week
@@ -387,15 +405,18 @@ function updateBlocksList() {
   });
 }
 
-function startWorkout() {
+function startWorkout(resume = false) {
   blockIdx = 0;
   elapsed = 0;
-  startTime = Date.now();
+  if (!resume) {
+    startTime = Date.now();
+    saveSession(program.id, currentWeek, startTime);
+  }
   buildBlocksList();
   hideAllScreens();
   $('screen-workout').classList.add('active');
   acquireWakeLock();
-  playSound(WEEKS[currentWeek].blocos[0].type);
+  if (!resume) playSound(WEEKS[currentWeek].blocos[0].type);
   tick();
   ticker = setInterval(tick, 1000);
 }
@@ -443,6 +464,7 @@ function tick() {
 function finishWorkout() {
   clearInterval(ticker);
   releaseWakeLock();
+  clearSession();
   playSound('done');
   markDone(program.id, WEEKS[currentWeek].n);
   const next = WEEKS[currentWeek + 1];
@@ -458,6 +480,34 @@ function finishWorkout() {
 
 // ===================== PAUSE / FINISH =====================
 $('btn-pause').onclick = () => $('pause-overlay').classList.add('active');
+
+// Ajusta o tempo do treino deslocando o startTime (ancora). deltaSecs positivo
+// avanca o tempo (aproxima do fim), negativo volta. Nao toca som: recalcula o
+// blockIdx correto ANTES de chamar tick(), de modo que o loop de avanco do tick
+// nao dispare playSound (R6).
+function adjustTime(deltaSecs) {
+  const w = WEEKS[currentWeek];
+  const totalSecs = w.blocos[w.blocos.length - 1].end;
+  // avancar tempo = diminuir startTime
+  startTime -= deltaSecs * 1000;
+  // clampeia elapsed em [0, totalSecs)
+  let newElapsed = Math.floor((Date.now() - startTime) / 1000);
+  if (newElapsed < 0) {
+    startTime = Date.now();
+    newElapsed = 0;
+  } else if (newElapsed >= totalSecs) {
+    startTime = Date.now() - (totalSecs - 1) * 1000;
+    newElapsed = totalSecs - 1;
+  }
+  // recalcula blockIdx para o bloco correspondente ao novo elapsed (evita som)
+  blockIdx = w.blocos.findIndex(b => newElapsed < b.end);
+  if (blockIdx < 0) blockIdx = w.blocos.length - 1;
+  saveSession(program.id, currentWeek, startTime);
+  tick();
+}
+$('btn-back-time').onclick = () => adjustTime(-5);
+$('btn-fwd-time').onclick  = () => adjustTime(15);
+
 $('btn-finish').onclick = async () => {
   if (await confirmDialog('Finish workout?', 'Finish', 'Cancel')) {
     clearInterval(ticker);
@@ -469,12 +519,14 @@ $('btn-resume').onclick = () => $('pause-overlay').classList.remove('active');
 $('btn-restart').onclick = () => {
   $('pause-overlay').classList.remove('active');
   clearInterval(ticker);
+  clearSession();
   startTime = Date.now();
   startWorkout();
 };
 $('btn-quit').onclick = () => {
   clearInterval(ticker);
   releaseWakeLock();
+  clearSession();
   $('pause-overlay').classList.remove('active');
   showSelect();
 };
@@ -510,6 +562,30 @@ function releaseWakeLock() {
 async function init() {
   migrateOldData();
   await loadCatalog();
+
+  // retomar sessao em andamento: se ha uma sessao iniciada ha < 30 min e nao
+  // finalizada/cancelada, abre direto no treino continuando de onde parou.
+  const session = loadSession();
+  if (session && (Date.now() - session.startTime) < 30 * 60 * 1000) {
+    const entry = catalog.find(p => p.id === session.programId);
+    if (entry && entry.available && entry.file) {
+      try {
+        const res = await fetch(entry.file);
+        const data = await res.json();
+        if (!validateProgram(data)) {
+          loadProgram(data);
+          currentWeek = session.weekIndex;
+          startTime = session.startTime;
+          startWorkout(true);
+          registerSW();
+          return;
+        }
+      } catch (e) { /* cai para o fluxo normal */ }
+    }
+    clearSession(); // sessao invalida
+  } else if (session) {
+    clearSession(); // sessao expirada (> 30 min)
+  }
 
   const savedPid = localStorage.getItem(LS_PROGRAM);
   if (savedPid) {

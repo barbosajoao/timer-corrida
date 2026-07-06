@@ -40,6 +40,9 @@ body { background: #111; color: #fff; font-family: sans-serif; height: 100dvh; d
 .current-type.run  { color: #e83535; }
 .current-type.walk { color: #5ab4d6; }
 .current-time { font-size: 5rem; font-weight: 900; letter-spacing: -2px; font-variant-numeric: tabular-nums; }
+.time-row { display: flex; align-items: center; justify-content: center; gap: 16px; }
+#btn-back-time, #btn-fwd-time { flex-shrink: 0; padding: 12px 16px; font-size: 1rem; font-weight: 700; background: #333; border: none; border-radius: 12px; color: #ccc; cursor: pointer; white-space: nowrap; }
+#btn-back-time:active, #btn-fwd-time:active { background: #444; }
 .next-block { text-align: center; color: #aaa; font-size: 0.95rem; }
 .next-block span { color: #fff; font-weight: 600; }
 .progress-bar-wrap { background: #333; border-radius: 8px; height: 10px; overflow: hidden; }
