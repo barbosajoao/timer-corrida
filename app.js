@@ -576,9 +576,19 @@ async function init() {
           loadProgram(data);
           currentWeek = session.weekIndex;
           startTime = session.startTime;
-          startWorkout(true);
-          registerSW();
-          return;
+          // verifica se o treino ja teria terminado antes de retomar
+          const builtWeeks = data.weeks.map(buildWeek);
+          const weekData = builtWeeks[session.weekIndex];
+          const totalSecs = weekData ? weekData.blocos[weekData.blocos.length - 1].end : 0;
+          const sessionElapsed = Math.floor((Date.now() - session.startTime) / 1000);
+          if (!weekData || sessionElapsed >= totalSecs) {
+            // treino ja terminou — limpa sessao e segue fluxo normal
+            clearSession();
+          } else {
+            startWorkout(true);
+            registerSW();
+            return;
+          }
         }
       } catch (e) { /* cai para o fluxo normal */ }
     }
