@@ -344,8 +344,8 @@ function renderSelectRecentHistory() {
       </div>`).join('');
 }
 
-$('btn-prev').onclick = () => { if (currentWeek > 0) { currentWeek--; renderSelect(); } };
-$('btn-next-week').onclick = () => { if (currentWeek < WEEKS.length - 1) { currentWeek++; renderSelect(); } };
+$('btn-prev').onclick = () => { if (currentWeek > 0) { currentWeek--; setSavedWeek(program.id, currentWeek); renderSelect(); } };
+$('btn-next-week').onclick = () => { if (currentWeek < WEEKS.length - 1) { currentWeek++; setSavedWeek(program.id, currentWeek); renderSelect(); } };
 $('btn-start').onclick = () => startWorkout();
 $('btn-change-program').onclick = () => showPrograms();
 
@@ -526,7 +526,7 @@ $('btn-fwd-time').onclick  = () => adjustTime(15);
 
 $('btn-finish').onclick = async () => {
   const choice = await confirmDialog(
-    'Finish workout?', 'Finish', 'Cancel', 'Voltar à tela anterior'
+    'Finish workout?', 'Finish', 'Cancel', 'Quit'
   );
   if (choice === true) {
     clearInterval(ticker);
