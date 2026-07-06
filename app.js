@@ -31,24 +31,35 @@ function fmtDur(secs) {
   return m + ' min ' + s + 's';
 }
 
-// dialogo de confirmacao generico. Retorna uma Promise<boolean>:
-// resolve true se o usuario confirmar, false se cancelar.
+// dialogo de confirmacao generico. Retorna uma Promise:
+// - resolve true se o usuario confirmar, false se cancelar (comportamento padrao)
+// - se altLabel for informado, mostra um 3o botao que resolve a string 'alt'
 // Uso: if (await confirmDialog('Apagar?', 'Apagar')) { ... }
-function confirmDialog(title, confirmLabel = 'OK', cancelLabel = 'Cancelar') {
+//      const c = await confirmDialog('Finish?', 'Finish', 'Cancel', 'Voltar');
+function confirmDialog(title, confirmLabel = 'OK', cancelLabel = 'Cancelar', altLabel = null) {
   return new Promise(resolve => {
     const ov = $('confirm-overlay');
     $('confirm-title').textContent = title;
     $('confirm-yes').textContent = confirmLabel;
     $('confirm-no').textContent = cancelLabel;
+    const altBtn = $('confirm-alt');
+    if (altLabel) {
+      altBtn.textContent = altLabel;
+      altBtn.style.display = '';
+    } else {
+      altBtn.style.display = 'none';
+    }
     ov.classList.add('active');
     const close = (result) => {
       ov.classList.remove('active');
       $('confirm-yes').onclick = null;
       $('confirm-no').onclick = null;
+      altBtn.onclick = null;
       resolve(result);
     };
     $('confirm-yes').onclick = () => close(true);
     $('confirm-no').onclick = () => close(false);
+    altBtn.onclick = () => close('alt');
   });
 }
 
@@ -211,6 +222,7 @@ function showPrograms() {
     list.appendChild(btn);
   });
   renderRecentHistory();
+  renderVersionFooters();
 }
 
 // agrega o historico de todos os programas e mostra as 5 sessoes mais recentes
@@ -313,6 +325,7 @@ function renderSelect() {
   const done = doneWeeks(program.id);
   $('saved-note').textContent = done.includes(w.n) ? 'Week ' + w.n + ' completed before' : '';
   renderSelectRecentHistory();
+  renderVersionFooters();
 }
 
 function renderSelectRecentHistory() {
@@ -509,11 +522,21 @@ $('btn-back-time').onclick = () => adjustTime(-5);
 $('btn-fwd-time').onclick  = () => adjustTime(15);
 
 $('btn-finish').onclick = async () => {
-  if (await confirmDialog('Finish workout?', 'Finish', 'Cancel')) {
+  const choice = await confirmDialog(
+    'Finish workout?', 'Finish', 'Cancel', 'Voltar à tela anterior'
+  );
+  if (choice === true) {
     clearInterval(ticker);
     releaseWakeLock();
     finishWorkout();
+  } else if (choice === 'alt') {
+    // volta para a tela de selecao e apaga a sessao em andamento do cache
+    clearInterval(ticker);
+    releaseWakeLock();
+    clearSession();
+    showSelect();
   }
+  // choice === false: cancelar — nao faz nada
 };
 $('btn-resume').onclick = () => $('pause-overlay').classList.remove('active');
 $('btn-restart').onclick = () => {
@@ -557,6 +580,75 @@ async function acquireWakeLock() {
 function releaseWakeLock() {
   if (wakeLock) { wakeLock.release(); wakeLock = null; }
 }
+
+// ===================== VERSAO / ATUALIZAR CACHE =====================
+// Pergunta ao service worker que controla a pagina qual e o CACHE_NAME dele
+// (a versao do codigo realmente em execucao). Retorna null se nao houver SW.
+function getSWVersion() {
+  return new Promise(resolve => {
+    const ctrl = navigator.serviceWorker && navigator.serviceWorker.controller;
+    if (!ctrl) { resolve(null); return; }
+    const mc = new MessageChannel();
+    let done = false;
+    mc.port1.onmessage = e => { done = true; resolve(e.data && e.data.version); };
+    ctrl.postMessage('GET_VERSION', [mc.port2]);
+    setTimeout(() => { if (!done) resolve(null); }, 800);
+  });
+}
+
+// versao a exibir: preferimos a do SW controlador; se nao houver, lemos o nome
+// do cache existente como fallback.
+async function getAppVersion() {
+  const v = await getSWVersion();
+  if (v) return v;
+  if ('caches' in window) {
+    try {
+      const keys = await caches.keys();
+      const hit = keys.find(k => k.startsWith('corrida-'));
+      if (hit) return hit;
+    } catch (e) { /* ignora */ }
+  }
+  return null;
+}
+
+async function renderVersionFooters() {
+  const version = await getAppVersion();
+  const label = 'Versão: ' + (version || 'desconhecida');
+  ['app-version-prog', 'app-version-sel'].forEach(id => {
+    const el = $(id);
+    if (el) el.textContent = label;
+  });
+}
+
+// Limpa APENAS o Cache Storage (nunca o localStorage) e recarrega para pegar a
+// versao mais nova. O historico/progresso ficam no localStorage e sao
+// preservados. Requer estar online, senao o app nao consegue recarregar.
+async function updateApp() {
+  if (!navigator.onLine) {
+    toast('Você precisa estar online para atualizar o app.');
+    return;
+  }
+  const ok = await confirmDialog(
+    'Limpar o cache e recarregar? Seu histórico e progresso NÃO serão apagados.',
+    'Atualizar', 'Cancelar'
+  );
+  if (!ok) return;
+  try {
+    if ('caches' in window) {
+      const keys = await caches.keys();
+      await Promise.all(keys.map(k => caches.delete(k)));
+    }
+    if ('serviceWorker' in navigator) {
+      const reg = await navigator.serviceWorker.getRegistration();
+      if (reg) await reg.update();
+    }
+  } catch (e) { /* segue para o reload de qualquer forma */ }
+  toast('Cache limpo, recarregando…');
+  setTimeout(() => location.reload(), 400);
+}
+
+$('btn-update-app-prog').onclick = updateApp;
+$('btn-update-app-sel').onclick = updateApp;
 
 // ===================== INIT =====================
 async function init() {

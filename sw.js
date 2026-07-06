@@ -11,7 +11,7 @@
 //
 // Quando adicionar um novo arquivo (ex.: data/<novo>.json), inclua-o em ASSETS
 // para que fique disponivel offline desde a primeira vez.
-const CACHE_NAME = 'corrida-v4';
+const CACHE_NAME = 'corrida-v5';
 const ASSETS = [
   './index.html',
   './styles.css',
@@ -55,4 +55,15 @@ self.addEventListener('fetch', e => {
       })
     )
   );
+});
+
+
+// Responde a versao (CACHE_NAME) para o app poder exibir qual codigo esta
+// realmente em execucao. O app envia 'GET_VERSION' via MessageChannel.
+self.addEventListener('message', e => {
+  if (e.data === 'GET_VERSION') {
+    const reply = { type: 'VERSION', version: CACHE_NAME };
+    if (e.ports && e.ports[0]) e.ports[0].postMessage(reply);
+    else if (e.source) e.source.postMessage(reply);
+  }
 });

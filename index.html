@@ -15,6 +15,10 @@
   <h2>Escolha um treino</h2>
   <div class="program-list" id="program-list"></div>
   <div class="recent-history" id="recent-history"></div>
+  <div class="app-footer">
+    <span class="app-version" id="app-version-prog">Versão: —</span>
+    <button class="link-btn" id="btn-update-app-prog">Atualizar app (limpar cache)</button>
+  </div>
 </div>
 
 <!-- SCREEN: SELECT (semana) -->
@@ -34,6 +38,10 @@
   <p class="saved-note" id="saved-note"></p>
   <button id="btn-history">Session history</button>
   <button id="btn-change-program" class="link-btn">Selecionar programa</button>
+  <div class="app-footer">
+    <span class="app-version" id="app-version-sel">Versão: —</span>
+    <button class="link-btn" id="btn-update-app-sel">Atualizar app (limpar cache)</button>
+  </div>
 </div>
 
 <!-- SCREEN: HISTORY -->
@@ -77,6 +85,7 @@
 <div id="confirm-overlay" class="overlay">
   <h2 id="confirm-title">Tem certeza?</h2>
   <button id="confirm-yes" class="btn-primary">OK</button>
+  <button id="confirm-alt" class="btn-secondary" style="display:none">Voltar</button>
   <button id="confirm-no" class="btn-secondary">Cancelar</button>
 </div>
 

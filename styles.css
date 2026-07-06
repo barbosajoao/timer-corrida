@@ -32,6 +32,10 @@ body { background: #111; color: #fff; font-family: sans-serif; height: 100dvh; d
 .saved-note { color: #777; font-size: 0.85rem; }
 .link-btn { background: transparent; border: none; color: #555; font-size: 0.85rem; cursor: pointer; text-decoration: underline; }
 
+/* APP FOOTER (versao + atualizar cache) */
+.app-footer { width: 100%; max-width: 380px; margin: 12px auto 0; display: flex; flex-direction: column; align-items: center; gap: 4px; }
+.app-version { color: #555; font-size: 0.75rem; font-variant-numeric: tabular-nums; }
+
 /* WORKOUT */
 #screen-workout { justify-content: space-between; }
 .wk-header { display: flex; justify-content: space-between; align-items: center; font-size: 0.9rem; color: #aaa; }
