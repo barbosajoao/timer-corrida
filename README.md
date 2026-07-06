@@ -74,8 +74,8 @@ Veja `data/_example.json` para um modelo pronto para copiar.
    ```
 
 3. Adicione `./data/<id>.json` à lista `ASSETS` do `sw.js` (para ficar
-   disponível offline desde a primeira vez). **Não** é preciso mexer em
-   versão de cache — o service worker se atualiza sozinho.
+   disponível offline desde a primeira vez) e **incremente o `CACHE_NAME`**
+   (ver seção "Atualização offline").
 
 4. Valide antes de publicar:
    ```
@@ -94,8 +94,13 @@ Há migração automática do formato antigo (global) para o programa `c25k_16we
 
 O `sw.js` usa a estratégia *stale-while-revalidate*: o app abre instantaneamente
 a partir do cache (e funciona offline) e, em paralelo, baixa a versão nova para
-a próxima abertura. Ou seja, **as mudanças chegam sozinhas** ao recarregar — não
-é mais necessário incrementar nenhum número de versão a cada deploy.
+a próxima abertura.
+
+**Sempre incremente o `CACHE_NAME` (`corrida-vN`) em `sw.js` a cada modificação.**
+Sem o bump, o navegador continua servindo o código antigo do cache — mudanças (e
+correções de bugs) só chegariam depois de recarregar duas vezes, o que já causou
+bugs recorrentes de código desatualizado em produção. Trocar a versão força o
+service worker a reinstalar e rebaixar tudo da rede, aplicando a mudança na hora.
 
 ## Sons
 

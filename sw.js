@@ -2,8 +2,12 @@
 //
 // Por que essa estrategia: o app responde na hora a partir do cache (rapido e
 // funciona offline) e, em paralelo, busca a versao nova na rede e atualiza o
-// cache para a PROXIMA abertura. Resultado: nao e mais preciso incrementar o
-// CACHE_NAME a cada mudanca — as alteracoes chegam sozinhas ao recarregar.
+// cache para a PROXIMA abertura.
+//
+// IMPORTANTE: incremente o CACHE_NAME (corrida-vN) A CADA modificacao. Sem o
+// bump, o navegador serve o codigo antigo do cache e as mudancas so chegam
+// depois de recarregar duas vezes — o que ja causou bugs de codigo
+// desatualizado. Trocar a versao forca a reinstalacao e o rebaixo da rede.
 //
 // Quando adicionar um novo arquivo (ex.: data/<novo>.json), inclua-o em ASSETS
 // para que fique disponivel offline desde a primeira vez.
