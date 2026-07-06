@@ -11,7 +11,7 @@
 //
 // Quando adicionar um novo arquivo (ex.: data/<novo>.json), inclua-o em ASSETS
 // para que fique disponivel offline desde a primeira vez.
-const CACHE_NAME = 'corrida-v5';
+const CACHE_NAME = 'corrida-v6';
 const ASSETS = [
   './index.html',
   './styles.css',
@@ -26,7 +26,15 @@ const ASSETS = [
 ];
 
 self.addEventListener('install', e => {
-  e.waitUntil(caches.open(CACHE_NAME).then(c => c.addAll(ASSETS)));
+  // Cacheia os assets individualmente: uma falha pontual (ex: conexao instavel)
+  // nao aborta a instalacao inteira do service worker.
+  e.waitUntil(
+    caches.open(CACHE_NAME).then(cache =>
+      Promise.allSettled(ASSETS.map(url =>
+        cache.add(url).catch(err => console.warn('[SW] falhou ao cachear', url, err))
+      ))
+    )
+  );
   self.skipWaiting();
 });
 
