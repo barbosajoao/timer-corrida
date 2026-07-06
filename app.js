@@ -131,16 +131,29 @@ function setProgress(pid, progress) {
   saveStore(store);
 }
 
-function savedWeek(pid) { return getProgress(pid).week || 0; }
 function doneWeeks(pid) { return getProgress(pid).done || []; }
+
+// Deriva em qual semana o app deve abrir, com base no historico. Usa a entrada
+// mais recente (history[0], pois addHistory faz unshift):
+//   - action 'advance' na semana N  -> abre na semana seguinte (N+1)
+//   - action 'repeat'  na semana N  -> abre na mesma semana (N)
+// Sem historico utilizavel, abre no inicio do programa (indice 0).
+// Requer WEEKS ja construido (loadProgram chamado antes).
+function openingWeekIndex(pid) {
+  const hist = getProgress(pid).history || [];
+  if (hist.length > 0) {
+    const last = hist[0];
+    const idx = WEEKS.findIndex(w => w.n === last.week);
+    if (idx >= 0) {
+      if (last.action === 'advance') return Math.min(idx + 1, WEEKS.length - 1);
+      return idx; // repeat (ou qualquer outra acao) -> mesma semana
+    }
+  }
+  return 0;
+}
 function markDone(pid, n) {
   const p = getProgress(pid);
   if (!p.done.includes(n)) p.done.push(n);
-  setProgress(pid, p);
-}
-function setSavedWeek(pid, weekIdx) {
-  const p = getProgress(pid);
-  p.week = weekIdx;
   setProgress(pid, p);
 }
 function addHistory(pid, weekN, action, durationSecs) {
@@ -296,7 +309,7 @@ async function selectProgram(p) {
     }
     loadProgram(data);
     localStorage.setItem(LS_PROGRAM, data.id);
-    currentWeek = savedWeek(data.id);
+    currentWeek = openingWeekIndex(data.id);
     showSelect();
   } catch (e) {
     toast('Erro ao carregar o treino.');
@@ -344,8 +357,8 @@ function renderSelectRecentHistory() {
       </div>`).join('');
 }
 
-$('btn-prev').onclick = () => { if (currentWeek > 0) { currentWeek--; setSavedWeek(program.id, currentWeek); renderSelect(); } };
-$('btn-next-week').onclick = () => { if (currentWeek < WEEKS.length - 1) { currentWeek++; setSavedWeek(program.id, currentWeek); renderSelect(); } };
+$('btn-prev').onclick = () => { if (currentWeek > 0) { currentWeek--; renderSelect(); } };
+$('btn-next-week').onclick = () => { if (currentWeek < WEEKS.length - 1) { currentWeek++; renderSelect(); } };
 $('btn-start').onclick = () => startWorkout();
 $('btn-change-program').onclick = () => showPrograms();
 
@@ -491,7 +504,6 @@ function finishWorkout() {
   $('btn-repeat').textContent = 'Repeat Week ' + WEEKS[currentWeek].n;
   hideAllScreens();
   $('screen-done').classList.add('active');
-  setSavedWeek(program.id, Math.min(currentWeek + 1, WEEKS.length - 1));
 }
 
 // ===================== PAUSE / FINISH =====================
@@ -561,12 +573,10 @@ $('btn-quit').onclick = () => {
 $('btn-next').onclick = () => {
   addHistory(program.id, WEEKS[currentWeek].n, 'advance', elapsed);
   currentWeek = Math.min(currentWeek + 1, WEEKS.length - 1);
-  setSavedWeek(program.id, currentWeek); // proxima abertura: proxima semana
   showSelect();
 };
 $('btn-repeat').onclick = () => {
   addHistory(program.id, WEEKS[currentWeek].n, 'repeat', elapsed);
-  setSavedWeek(program.id, currentWeek); // proxima abertura: mesma semana
   showSelect();
 };
 
@@ -703,7 +713,7 @@ async function init() {
         const data = await res.json();
         if (!validateProgram(data)) {
           loadProgram(data);
-          currentWeek = savedWeek(data.id);
+          currentWeek = openingWeekIndex(data.id);
           showSelect();
           registerSW();
           return;
