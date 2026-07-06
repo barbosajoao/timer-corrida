@@ -561,10 +561,12 @@ $('btn-quit').onclick = () => {
 $('btn-next').onclick = () => {
   addHistory(program.id, WEEKS[currentWeek].n, 'advance', elapsed);
   currentWeek = Math.min(currentWeek + 1, WEEKS.length - 1);
+  setSavedWeek(program.id, currentWeek); // proxima abertura: proxima semana
   showSelect();
 };
 $('btn-repeat').onclick = () => {
   addHistory(program.id, WEEKS[currentWeek].n, 'repeat', elapsed);
+  setSavedWeek(program.id, currentWeek); // proxima abertura: mesma semana
   showSelect();
 };
 
