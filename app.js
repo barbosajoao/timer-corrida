@@ -346,7 +346,7 @@ function renderSelectRecentHistory() {
 
 $('btn-prev').onclick = () => { if (currentWeek > 0) { currentWeek--; renderSelect(); } };
 $('btn-next-week').onclick = () => { if (currentWeek < WEEKS.length - 1) { currentWeek++; renderSelect(); } };
-$('btn-start').onclick = startWorkout;
+$('btn-start').onclick = () => startWorkout();
 $('btn-change-program').onclick = () => showPrograms();
 
 // ===================== HISTORY =====================
@@ -419,9 +419,12 @@ function updateBlocksList() {
 }
 
 function startWorkout(resume = false) {
+  // trata como resume APENAS se for exatamente true (evita bug de passar o
+  // event do onclick como argumento, o que deixaria startTime sem ser setado)
+  const isResume = resume === true;
   blockIdx = 0;
   elapsed = 0;
-  if (!resume) {
+  if (!isResume) {
     startTime = Date.now();
     saveSession(program.id, currentWeek, startTime);
   }
@@ -429,7 +432,7 @@ function startWorkout(resume = false) {
   hideAllScreens();
   $('screen-workout').classList.add('active');
   acquireWakeLock();
-  if (!resume) playSound(WEEKS[currentWeek].blocos[0].type);
+  if (!isResume) playSound(WEEKS[currentWeek].blocos[0].type);
   tick();
   ticker = setInterval(tick, 1000);
 }
