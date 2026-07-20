@@ -1,0 +1,33 @@
+rules_version = '2';
+
+// Regras de segurança do Firestore para as notas ocultas (Keep).
+//
+// COMO USAR: substitua OWNER_UID_AQUI (nos dois lugares) pelo UID da sua conta
+// (Authentication > Users > User UID) e publique em:
+//   Firebase Console > Firestore Database > Regras > Publicar.
+//
+// O que estas regras garantem:
+//   - Só a SUA conta autenticada (OWNER_UID) pode LER, ESCREVER e APAGAR.
+//   - "write" cobre create, update E delete — ou seja, ninguém além de você
+//     apaga suas notas.
+//   - Qualquer outra conta (mesmo que alguém crie uma a partir do código
+//     público) e qualquer requisição anônima recebem "permission denied".
+//   - Sem regra que permita, o padrão é NEGAR tudo o mais.
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // Documento do dono: notes/{OWNER_UID}  (guarda salt + verifier da cifra)
+    match /notes/{uid} {
+      allow read, write: if request.auth != null
+                         && request.auth.uid == uid
+                         && request.auth.uid == "WTQ2AzWUR5hNJEzvT8cnuYC5M0L2";
+
+      // Itens (cada nota cifrada): notes/{OWNER_UID}/items/{noteId}
+      match /items/{noteId} {
+        allow read, write: if request.auth != null
+                           && request.auth.uid == "WTQ2AzWUR5hNJEzvT8cnuYC5M0L2";
+      }
+    }
+  }
+}

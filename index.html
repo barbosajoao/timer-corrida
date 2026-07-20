@@ -100,10 +100,67 @@
 
 <div id="toast"></div>
 
+<!-- ============================================================= -->
+<!-- KEEP: tela oculta de notas. Fica escondida (display:none) e só -->
+<!-- é revelada pelo gesto secreto (5 toques no "Versão:" do rodapé). -->
+<!-- É um overlay full-screen: não interfere na lógica de telas do   -->
+<!-- app de corrida. Nenhum dado sensível fica aqui.                 -->
+<!-- ============================================================= -->
+<div id="screen-keep">
+  <div class="keep-header">
+    <span class="keep-title">Notas</span>
+    <button id="keep-close" class="keep-icon-btn" aria-label="Fechar">&#10005;</button>
+  </div>
+
+  <!-- Aviso quando o Firebase ainda não foi configurado -->
+  <div id="keep-notconfigured" class="keep-panel" style="display:none">
+    <p>A funcionalidade de notas ainda não foi configurada.</p>
+    <p class="keep-muted">Preencha <code>keep-config.js</code> e publique as
+    <code>firestore.rules</code> (veja o README).</p>
+  </div>
+
+  <!-- Passo 1: login (Firebase Auth) -->
+  <div id="keep-login" class="keep-panel" style="display:none">
+    <p class="keep-muted">Entre com a sua conta.</p>
+    <input id="keep-email" class="keep-input" type="email" autocomplete="username"
+           placeholder="e-mail" inputmode="email">
+    <input id="keep-password" class="keep-input" type="password" autocomplete="current-password"
+           placeholder="senha da conta">
+    <button id="keep-login-btn" class="keep-btn-primary">Entrar</button>
+    <p id="keep-login-error" class="keep-error"></p>
+  </div>
+
+  <!-- Passo 2: senha de criptografia (unlock E2E) -->
+  <div id="keep-unlock" class="keep-panel" style="display:none">
+    <p class="keep-muted">Digite a senha de criptografia para abrir as notas.</p>
+    <input id="keep-passphrase" class="keep-input" type="password" autocomplete="off"
+           placeholder="senha de criptografia">
+    <button id="keep-unlock-btn" class="keep-btn-primary">Destravar</button>
+    <p id="keep-unlock-error" class="keep-error"></p>
+    <button id="keep-logout-btn" class="keep-link">Sair da conta</button>
+  </div>
+
+  <!-- Passo 3: notas (add + remove) -->
+  <div id="keep-notes" class="keep-panel" style="display:none">
+    <div class="keep-compose">
+      <textarea id="keep-new" class="keep-input keep-textarea" rows="2"
+                placeholder="Nova nota…"></textarea>
+      <button id="keep-add-btn" class="keep-btn-primary">Adicionar</button>
+    </div>
+    <div id="keep-status" class="keep-muted"></div>
+    <div id="keep-list" class="keep-list"></div>
+    <div class="keep-footer">
+      <button id="keep-lock-btn" class="keep-link">Travar</button>
+      <button id="keep-logout-btn2" class="keep-link">Sair da conta</button>
+    </div>
+  </div>
+</div>
+
 <audio id="snd-run"  src="./sounds/run.mp3"  preload="auto"></audio>
 <audio id="snd-walk" src="./sounds/walk.mp3" preload="auto"></audio>
 <audio id="snd-done" src="./sounds/done.mp3" preload="auto"></audio>
 
 <script src="./app.js"></script>
+<script type="module" src="./keep.js"></script>
 </body>
 </html>

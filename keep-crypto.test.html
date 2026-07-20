@@ -1,0 +1,111 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>keep-crypto — testes</title>
+  <style>
+    body { font-family: monospace; background: #111; color: #eee; padding: 24px; }
+    h1 { font-size: 1.2rem; }
+    .pass { color: #4ec94e; }
+    .fail { color: #ff5555; font-weight: bold; }
+    .info { color: #888; }
+    #summary { margin-top: 16px; font-size: 1.1rem; font-weight: bold; }
+    pre { background: #1a1a1a; padding: 10px; border-radius: 8px; white-space: pre-wrap; word-break: break-all; }
+  </style>
+</head>
+<body>
+  <h1>keep-crypto — harness de teste</h1>
+  <p class="info">Abra este arquivo por HTTP (ex.: <code>python -m http.server</code>) — módulos ES
+  não carregam via file://. WebCrypto exige contexto seguro (localhost conta).</p>
+  <div id="results"></div>
+  <div id="summary"></div>
+
+  <script type="module">
+    import {
+      PBKDF2_ITERATIONS, deriveKey, encrypt, decrypt,
+      newSalt, exportKey, importKey, bytesToB64, b64ToBytes
+    } from './keep-crypto.js';
+
+    const results = document.getElementById('results');
+    let passed = 0, failed = 0;
+
+    function log(ok, msg, extra) {
+      const div = document.createElement('div');
+      div.className = ok ? 'pass' : 'fail';
+      div.textContent = (ok ? '✓ PASS  ' : '✗ FAIL  ') + msg;
+      results.appendChild(div);
+      if (extra) {
+        const pre = document.createElement('pre');
+        pre.textContent = extra;
+        results.appendChild(pre);
+      }
+      ok ? passed++ : failed++;
+    }
+
+    async function run() {
+      try {
+        // 1) iterações no valor exigido (>= 300.000)
+        log(PBKDF2_ITERATIONS >= 300000,
+          'PBKDF2_ITERATIONS >= 300000 (valor atual: ' + PBKDF2_ITERATIONS + ')');
+
+        // 2) round-trip: cifra -> decifra devolve o objeto original
+        const salt = newSalt();
+        const key = await deriveKey('minha-senha-secreta', salt);
+        const original = { text: 'Comprar leite e ovos 🥛🥚', ts: 123456 };
+        const payload = await encrypt(original, key);
+        const back = await decrypt(payload, key);
+        log(JSON.stringify(back) === JSON.stringify(original),
+          'round-trip cifra->decifra devolve o objeto original',
+          'original: ' + JSON.stringify(original) + '\ndecifrado: ' + JSON.stringify(back));
+
+        // 3) o ciphertext não revela o texto (não contém o plaintext em claro)
+        const leaks = atob(payload.ciphertext).includes('Comprar leite');
+        log(!leaks, 'ciphertext não contém o texto em claro',
+          'ciphertext (b64): ' + payload.ciphertext);
+
+        // 4) IV muda a cada escrita (mesma chave, mesmo conteúdo)
+        const p1 = await encrypt(original, key);
+        const p2 = await encrypt(original, key);
+        log(p1.iv !== p2.iv && p1.ciphertext !== p2.ciphertext,
+          'IV (e ciphertext) mudam a cada escrita',
+          'iv1: ' + p1.iv + '\niv2: ' + p2.iv);
+
+        // 5) senha errada falha ao decifrar
+        const wrongKey = await deriveKey('senha-ERRADA', salt);
+        let threw = false;
+        try { await decrypt(payload, wrongKey); } catch (e) { threw = true; }
+        log(threw, 'senha errada falha ao decifrar (AES-GCM autenticado)');
+
+        // 6) export/import da chave preserva a capacidade de decifrar (cache local)
+        const exported = await exportKey(key);
+        const reimported = await importKey(exported);
+        const back2 = await decrypt(payload, reimported);
+        log(JSON.stringify(back2) === JSON.stringify(original),
+          'chave exportada/reimportada ainda decifra (cache local funciona)');
+
+        // 7) mesmo salt + mesma senha -> mesma chave (sincroniza entre aparelhos)
+        const keyA = await deriveKey('senha-x', salt);
+        const keyB = await deriveKey('senha-x', salt);
+        const ea = await exportKey(keyA), eb = await exportKey(keyB);
+        log(ea === eb, 'mesma senha + mesmo salt derivam a MESMA chave (multi-dispositivo)');
+
+        // 8) helpers base64 round-trip
+        const rnd = crypto.getRandomValues(new Uint8Array(20));
+        const rt = b64ToBytes(bytesToB64(rnd));
+        log(rt.length === rnd.length && rt.every((b, i) => b === rnd[i]),
+          'helpers base64 <-> bytes round-trip');
+
+      } catch (e) {
+        log(false, 'exceção inesperada durante os testes', String(e && e.stack || e));
+      }
+
+      const summary = document.getElementById('summary');
+      summary.textContent = `Resultado: ${passed} passaram, ${failed} falharam.`;
+      summary.className = failed === 0 ? 'pass' : 'fail';
+    }
+
+    run();
+  </script>
+</body>
+</html>

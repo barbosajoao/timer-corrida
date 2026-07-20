@@ -11,11 +11,14 @@
 //
 // Quando adicionar um novo arquivo (ex.: data/<novo>.json), inclua-o em ASSETS
 // para que fique disponivel offline desde a primeira vez.
-const CACHE_NAME = 'corrida-v10';
+const CACHE_NAME = 'corrida-v12';
 const ASSETS = [
   './index.html',
   './styles.css',
   './app.js',
+  './keep.js',
+  './keep-crypto.js',
+  './keep-config.js',
   './manifest.json',
   './sounds/run.mp3',
   './sounds/walk.mp3',
@@ -48,6 +51,11 @@ self.addEventListener('activate', e => {
 
 self.addEventListener('fetch', e => {
   if (e.request.method !== 'GET') return;
+  // Só intercepta requisicoes do MESMO origin (os assets do app). Requisicoes
+  // cross-origin (SDK do Firebase via CDN, streaming do Firestore, reCAPTCHA do
+  // App Check) sao deixadas para o navegador tratar diretamente — interceptar o
+  // streaming do Firestore aqui quebrava a conexao (Listen/Write channel).
+  if (new URL(e.request.url).origin !== self.location.origin) return;
   e.respondWith(
     caches.open(CACHE_NAME).then(cache =>
       cache.match(e.request).then(cached => {

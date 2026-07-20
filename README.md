@@ -109,3 +109,77 @@ Para regenerar os sons (requer `pip install gtts`):
 ```
 python tools/gen_sounds.py
 ```
+
+## Notas ocultas (Keep) — funcionalidade e segurança
+
+O app inclui uma funcionalidade **oculta** de notas sincronizadas entre
+dispositivos (estilo Google Keep). Ela fica invisível no uso normal e só é
+revelada por um **gesto secreto**: tocar **5 vezes** no texto "Versão: …" do
+rodapé (na tela inicial ou na de seleção).
+
+### Arquivos
+```
+keep-crypto.js         criptografia E2E (PBKDF2 + AES-GCM) — WebCrypto nativo
+keep-crypto.test.html  harness de teste da criptografia (abra por HTTP/localhost)
+keep-config.js         config PÚBLICA do Firebase + OWNER_UID (você preenche)
+keep.js                UI + Firebase Auth + Firestore (sync das notas)
+firestore.rules        regras que travam os dados no seu UID
+```
+
+### Modelo de segurança (importante)
+Como o código é **público** no GitHub, esconder a funcionalidade **não** protege
+os dados. A proteção real vem de três camadas independentes:
+
+1. **Autenticação (Firebase Auth):** só a sua conta consegue falar com o banco.
+2. **Regras do Firestore (`firestore.rules`):** liberam ler/escrever/**apagar**
+   apenas para o **seu UID**. Qualquer outra conta (mesmo criada a partir do
+   código público) ou requisição anônima recebe *permission denied*.
+3. **Criptografia ponta-a-ponta (`keep-crypto.js`):** o texto é cifrado no seu
+   aparelho **antes** de subir; o Firestore guarda só o texto cifrado. Nem o
+   Google, nem um vazamento do banco expõem o conteúdo sem a sua senha.
+
+**Nada sensível fica no repositório.** A `apiKey` do Firebase é pública por
+design (não é senha). Sua **senha de conta** e sua **senha de criptografia**
+existem só na sua cabeça (e, salvas, dentro do seu aparelho). O gesto secreto é
+só conveniência/obscuridade — quem tiver seu aparelho destravado **e** souber do
+gesto verá as notas (o bloqueio de tela do celular é a defesa nesse caso).
+
+### Passo a passo no console do Firebase (você precisa fazer isto uma vez)
+1. Crie um projeto em https://console.firebase.google.com.
+2. **Adicione um App Web** (`</>`) e copie o objeto de config para
+   `firebaseConfig` em `keep-config.js`.
+3. **Authentication → Sign-in method:** ative **E-mail/senha**.
+   Em **Users**, crie a **sua única conta** com uma **senha forte**. Copie o
+   **User UID** e cole em `OWNER_UID` (em `keep-config.js`).
+4. **Firestore Database:** crie o banco em **modo produção**. Em **Regras**,
+   cole o conteúdo de `firestore.rules`, troque `OWNER_UID_AQUI` pelo seu UID
+   (nos dois lugares) e **Publique**.
+5. *(Opcional, recomendado)* **App Check** com **reCAPTCHA v3**: registre o app,
+   cole a *site key* em `RECAPTCHA_SITE_KEY` (`keep-config.js`) e adicione seu
+   domínio do GitHub Pages nos domínios autorizados. Deixe vazio para desativar.
+6. Em **Authentication → Settings → Authorized domains**, confirme que o domínio
+   do GitHub Pages (`barbosajoao.github.io`) está na lista.
+
+### Como usar
+1. Faça o gesto secreto (5 toques na versão) → abre a tela **Notas**.
+2. **Entrar** com e-mail/senha da conta (fica logado no aparelho).
+3. Digite a **senha de criptografia** (na primeira vez ela é registrada; nos
+   outros aparelhos, digite a MESMA senha para ler as notas).
+4. **Adicionar** e **apagar** notas — a sincronização é em tempo real entre
+   celular e PC.
+5. **Travar** limpa a chave cacheada (pede a senha de novo); **Sair** desloga.
+
+### Verificação da criptografia
+Abra `keep-crypto.test.html` por HTTP (ex.: `python -m http.server` e acesse
+`http://localhost:8000/keep-crypto.test.html`). Os testes checam round-trip
+cifra/decifra, IV único por escrita, senha errada falhando e cache de chave.
+(WebCrypto exige contexto seguro: `localhost` ou HTTPS.)
+
+### Observações
+- **Offline:** o app de corrida continua 100% offline. A tela de Notas precisa
+  de rede para carregar o SDK do Firebase (CDN) e para logar; uma vez aberta, o
+  Firestore mantém as notas em cache local e enfileira escritas feitas offline,
+  sincronizando ao reconectar.
+- **Bump do `CACHE_NAME`:** vale para os arquivos do Keep também — ao alterá-los,
+  incremente `corrida-vN` em `sw.js` (o SDK do Firebase vem de CDN cross-origin e
+  não é cacheado pelo service worker por design).

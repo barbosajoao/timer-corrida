@@ -101,3 +101,35 @@ body { background: #111; color: #fff; font-family: sans-serif; height: 100dvh; d
 /* TOAST */
 #toast { position: fixed; left: 50%; bottom: 40px; transform: translateX(-50%); background: #2a2a2a; color: #fff; padding: 14px 22px; border-radius: 12px; font-size: 0.95rem; box-shadow: 0 4px 20px rgba(0,0,0,.5); opacity: 0; pointer-events: none; transition: opacity .3s; z-index: 20; max-width: 90%; text-align: center; }
 #toast.show { opacity: 1; }
+
+/* ===================== KEEP (notas ocultas) ===================== */
+/* overlay full-screen; escondido por padrao, revelado pelo gesto secreto */
+#screen-keep { display: none; position: fixed; inset: 0; background: #111; z-index: 30; flex-direction: column; padding: 20px; }
+#screen-keep.keep-open { display: flex; }
+.keep-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 16px; }
+.keep-title { font-size: 1.6rem; font-weight: 900; }
+.keep-icon-btn { background: #222; border: none; color: #ccc; width: 40px; height: 40px; border-radius: 50%; font-size: 1rem; cursor: pointer; }
+.keep-panel { display: flex; flex-direction: column; gap: 12px; width: 100%; max-width: 480px; margin: 0 auto; flex: 1 1 0; min-height: 0; }
+.keep-muted { color: #888; font-size: 0.9rem; }
+.keep-muted code { color: #aaa; background: #1a1a1a; padding: 1px 5px; border-radius: 5px; }
+.keep-input { width: 100%; background: #1e1e1e; border: 1px solid #333; border-radius: 12px; padding: 14px; color: #fff; font-size: 1rem; font-family: inherit; }
+.keep-input:focus { outline: none; border-color: #5ab4d6; }
+.keep-textarea { resize: vertical; min-height: 48px; }
+.keep-btn-primary { width: 100%; padding: 16px; font-size: 1.05rem; font-weight: 700; background: #e83535; border: none; border-radius: 14px; color: #fff; cursor: pointer; }
+.keep-btn-primary:disabled { opacity: 0.5; cursor: default; }
+.keep-error { color: #ff6b6b; font-size: 0.85rem; min-height: 1.1em; }
+.keep-link { background: transparent; border: none; color: #666; font-size: 0.85rem; cursor: pointer; text-decoration: underline; }
+
+/* compose (nova nota) */
+.keep-compose { display: flex; flex-direction: column; gap: 8px; flex-shrink: 0; }
+
+/* lista de notas */
+.keep-list { flex: 1 1 0; overflow-y: auto; display: flex; flex-direction: column; gap: 8px; margin-top: 4px; }
+.keep-note { background: #1c1c1c; border-radius: 12px; padding: 14px 14px 14px 16px; display: flex; align-items: flex-start; gap: 10px; }
+.keep-note-text { flex: 1 1 0; white-space: pre-wrap; word-break: break-word; font-size: 0.98rem; line-height: 1.35; }
+.keep-note-date { color: #666; font-size: 0.72rem; margin-top: 6px; }
+.keep-note-undecipherable { color: #ff6b6b; font-style: italic; }
+.keep-del { flex-shrink: 0; width: 34px; height: 34px; border-radius: 50%; background: #2a2a2a; border: none; color: #888; font-size: 0.9rem; cursor: pointer; }
+.keep-del:hover { background: #3a1010; color: #e83535; }
+.keep-empty { color: #555; text-align: center; margin-top: 40px; }
+.keep-footer { display: flex; justify-content: space-between; flex-shrink: 0; padding-top: 8px; }
