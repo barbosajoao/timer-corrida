@@ -11,7 +11,7 @@
 //
 // Quando adicionar um novo arquivo (ex.: data/<novo>.json), inclua-o em ASSETS
 // para que fique disponivel offline desde a primeira vez.
-const CACHE_NAME = 'corrida-v12';
+const CACHE_NAME = 'corrida-v13';
 const ASSETS = [
   './index.html',
   './styles.css',
@@ -19,6 +19,7 @@ const ASSETS = [
   './keep.js',
   './keep-crypto.js',
   './keep-config.js',
+  './keep-groups.js',
   './manifest.json',
   './sounds/run.mp3',
   './sounds/walk.mp3',

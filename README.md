@@ -122,6 +122,8 @@ rodapé (na tela inicial ou na de seleção).
 keep-crypto.js         criptografia E2E (PBKDF2 + AES-GCM) — WebCrypto nativo
 keep-crypto.test.html  harness de teste da criptografia (abra por HTTP/localhost)
 keep-config.js         config PÚBLICA do Firebase + OWNER_UID (você preenche)
+keep-groups.js         lógica pura de grupos (abas) — sem Firebase/DOM, testável
+keep-groups.test.html  harness de teste das funções de grupos
 keep.js                UI + Firebase Auth + Firestore (sync das notas)
 firestore.rules        regras que travam os dados no seu UID
 ```
@@ -165,15 +167,36 @@ gesto verá as notas (o bloqueio de tela do celular é a defesa nesse caso).
 2. **Entrar** com e-mail/senha da conta (fica logado no aparelho).
 3. Digite a **senha de criptografia** (na primeira vez ela é registrada; nos
    outros aparelhos, digite a MESMA senha para ler as notas).
-4. **Adicionar** e **apagar** notas — a sincronização é em tempo real entre
-   celular e PC.
+4. **Adicionar** notas e organizá-las em **grupos (abas)** — a sincronização é
+   em tempo real entre celular e PC.
 5. **Travar** limpa a chave cacheada (pede a senha de novo); **Sair** desloga.
+
+### Grupos (abas) e exclusão por long-press
+- **Abas de grupos** aparecem no topo da tela de notas. Cada nota pertence a
+  **um** grupo; a aba ativa filtra a lista e é onde novas notas são criadas.
+- **Criar grupo:** toque no botão **+** ao fim das abas e informe o nome.
+- **Gerenciar grupo:** **segure** (long-press) a aba para abrir o menu com
+  **Renomear** e **Apagar**. Um grupo só pode ser apagado quando está **vazio**
+  (esvazie antes), e sempre resta pelo menos um grupo.
+- **Apagar nota:** **segure** a nota (~0,7s) até completar a barrinha; abre uma
+  confirmação mostrando o começo do texto. Isso evita apagões acidentais —
+  substitui o antigo "✕". Funciona igual no celular (toque) e no PC (mouse).
+- **Migração:** na primeira abertura com esta versão, um grupo **"Geral"** é
+  criado automaticamente e as notas já existentes aparecem nele (sem reescrever
+  os dados; notas sem grupo são resolvidas para o grupo padrão em tempo de
+  exibição).
+- **Privacidade:** os nomes dos grupos também são **cifrados** (E2E), guardados
+  no documento do dono (`notes/{UID}`) — o acesso continua travado pelas regras
+  do Firestore no seu UID. As regras **não mudam** com este recurso.
 
 ### Verificação da criptografia
 Abra `keep-crypto.test.html` por HTTP (ex.: `python -m http.server` e acesse
 `http://localhost:8000/keep-crypto.test.html`). Os testes checam round-trip
 cifra/decifra, IV único por escrita, senha errada falhando e cache de chave.
 (WebCrypto exige contexto seguro: `localhost` ou HTTPS.)
+
+Os testes da lógica de **grupos** ficam em `keep-groups.test.html` (funções
+puras: criar/renomear/apagar com guardas, resolução do grupo efetivo e filtro).
 
 ### Observações
 - **Offline:** o app de corrida continua 100% offline. A tela de Notas precisa

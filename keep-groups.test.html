@@ -1,0 +1,117 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Testes — keep-groups.js</title>
+  <style>
+    body { font-family: system-ui, sans-serif; background:#111; color:#eee; padding:16px; }
+    .ok { color:#7CFC00; } .fail { color:#ff6b6b; font-weight:bold; }
+    pre { white-space:pre-wrap; }
+  </style>
+</head>
+<body>
+  <h1>Testes — keep-groups.js</h1>
+  <pre id="out"></pre>
+  <script type="module">
+    import * as g from './keep-groups.js';
+
+    const out = document.getElementById('out');
+    let pass = 0, fail = 0;
+    function log(msg, ok) {
+      const line = document.createElement('div');
+      line.className = ok ? 'ok' : 'fail';
+      line.textContent = (ok ? 'PASS  ' : 'FALHOU ') + msg;
+      out.appendChild(line);
+      ok ? pass++ : fail++;
+    }
+    function assert(cond, msg) { log(msg, !!cond); }
+    function throws(fn, msg) {
+      let threw = false;
+      try { fn(); } catch (e) { threw = true; }
+      log(msg, threw);
+    }
+
+    runTests();
+
+    function runTests() {
+      // makeGroup
+      const gr = g.makeGroup('  Trabalho  ');
+      assert(gr.name === 'Trabalho' && !!gr.id, 'makeGroup apara nome e gera id');
+      throws(() => g.makeGroup('   '), 'makeGroup lança em nome vazio');
+
+      // addGroup (imutável, sem duplicado)
+      let list = [];
+      let r = g.addGroup(list, 'Geral');
+      assert(list.length === 0, 'addGroup não muta a lista original');
+      assert(r.list.length === 1 && r.list[0].name === 'Geral', 'addGroup adiciona grupo');
+      const def = r.list[0].id;
+      r = g.addGroup(r.list, 'Trabalho');
+      list = r.list;
+      assert(list.length === 2, 'addGroup adiciona segundo grupo');
+      throws(() => g.addGroup(list, 'geral'), 'addGroup lança em nome duplicado (case-insensitive)');
+      throws(() => g.addGroup(list, ''), 'addGroup lança em nome vazio');
+
+      // renameGroup
+      const trabId = list[1].id;
+      const renamed = g.renameGroup(list, trabId, 'Serviço');
+      assert(renamed[1].name === 'Serviço', 'renameGroup renomeia');
+      assert(list[1].name === 'Trabalho', 'renameGroup não muta a original');
+      throws(() => g.renameGroup(list, trabId, 'Geral'), 'renameGroup lança em duplicado');
+      throws(() => g.renameGroup(list, 'inexistente', 'X'), 'renameGroup lança em id inexistente');
+      throws(() => g.renameGroup(list, trabId, '  '), 'renameGroup lança em nome vazio');
+      // renomear pro mesmo nome (só o próprio) é permitido
+      const same = g.renameGroup(list, trabId, 'Trabalho');
+      assert(same[1].name === 'Trabalho', 'renameGroup permite manter o próprio nome');
+
+      // removeGroup — guardas
+      throws(() => g.removeGroup(list, trabId, { noteCountsById: { [trabId]: 2 }, defaultId: def }),
+        'removeGroup bloqueia grupo com notas');
+      throws(() => g.removeGroup([list[0]], def, { noteCountsById: {}, defaultId: def }),
+        'removeGroup bloqueia remover o último grupo');
+      throws(() => g.removeGroup(list, 'inexistente', { defaultId: def }),
+        'removeGroup lança em id inexistente');
+      // remoção ok
+      const rem = g.removeGroup(list, trabId, { noteCountsById: { [trabId]: 0 }, defaultId: def });
+      assert(rem.list.length === 1 && rem.list[0].id === def, 'removeGroup remove grupo vazio');
+      assert(rem.defaultId === def, 'removeGroup mantém defaultId quando não era o removido');
+      assert(list.length === 2, 'removeGroup não muta a original');
+      // remover o próprio default (vazio) reatribui defaultId
+      const rem2 = g.removeGroup(list, def, { noteCountsById: { [def]: 0 }, defaultId: def });
+      assert(rem2.list.length === 1 && rem2.defaultId === trabId, 'removeGroup reatribui defaultId ao remover o padrão');
+
+      // resolveEffectiveGroupId
+      const groups = [{ id: 'g1', name: 'Geral' }, { id: 'g2', name: 'Trabalho' }];
+      assert(g.resolveEffectiveGroupId({ text: 'x', groupId: 'g2' }, groups, 'g1') === 'g2',
+        'resolve usa groupId existente');
+      assert(g.resolveEffectiveGroupId({ text: 'x' }, groups, 'g1') === 'g1',
+        'resolve cai no default para nota legada (sem groupId)');
+      assert(g.resolveEffectiveGroupId({ text: 'x', groupId: 'sumiu' }, groups, 'g1') === 'g1',
+        'resolve cai no default para groupId inexistente');
+
+      // notesForGroup / countNotesByGroup
+      const notes = [
+        { id: 'n1', payload: { text: 'a', groupId: 'g1' } },
+        { id: 'n2', payload: { text: 'b', groupId: 'g2' } },
+        { id: 'n3', payload: { text: 'c' } },              // legada -> g1 (default)
+        { id: 'n4', payload: { text: 'd', groupId: 'zzz' } } // inexistente -> g1
+      ];
+      const inG1 = g.notesForGroup(notes, 'g1', groups, 'g1').map(n => n.id);
+      assert(JSON.stringify(inG1) === JSON.stringify(['n1', 'n3', 'n4']), 'notesForGroup filtra corretamente (com fallback)');
+      const counts = g.countNotesByGroup(notes, groups, 'g1');
+      assert(counts.g1 === 3 && counts.g2 === 1, 'countNotesByGroup conta com fallback');
+
+      // truncateSnippet
+      assert(g.truncateSnippet('curto') === 'curto', 'truncateSnippet mantém texto curto');
+      assert(g.truncateSnippet('a'.repeat(50), 10).length === 11 && g.truncateSnippet('a'.repeat(50), 10).endsWith('…'),
+        'truncateSnippet trunca e adiciona reticências');
+      assert(g.truncateSnippet('  multi\n  espaço  ') === 'multi espaço', 'truncateSnippet normaliza espaços');
+
+      const summary = document.createElement('h2');
+      summary.className = fail === 0 ? 'ok' : 'fail';
+      summary.textContent = `RESULTADO: ${pass} passaram, ${fail} falharam`;
+      out.appendChild(summary);
+    }
+  </script>
+</body>
+</html>

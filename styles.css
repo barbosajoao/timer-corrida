@@ -129,7 +129,30 @@ body { background: #111; color: #fff; font-family: sans-serif; height: 100dvh; d
 .keep-note-text { flex: 1 1 0; white-space: pre-wrap; word-break: break-word; font-size: 0.98rem; line-height: 1.35; }
 .keep-note-date { color: #666; font-size: 0.72rem; margin-top: 6px; }
 .keep-note-undecipherable { color: #ff6b6b; font-style: italic; }
-.keep-del { flex-shrink: 0; width: 34px; height: 34px; border-radius: 50%; background: #2a2a2a; border: none; color: #888; font-size: 0.9rem; cursor: pointer; }
-.keep-del:hover { background: #3a1010; color: #e83535; }
 .keep-empty { color: #555; text-align: center; margin-top: 40px; }
 .keep-footer { display: flex; justify-content: space-between; flex-shrink: 0; padding-top: 8px; }
+
+/* abas de grupos */
+.keep-tabs { display: flex; gap: 6px; overflow-x: auto; flex-shrink: 0; padding-bottom: 6px; -webkit-overflow-scrolling: touch; scrollbar-width: thin; }
+.keep-tab { flex: 0 0 auto; background: #1c1c1c; border: 1px solid #2c2c2c; color: #bbb; padding: 8px 14px; border-radius: 999px; font-size: 0.9rem; font-family: inherit; cursor: pointer; white-space: nowrap; position: relative; overflow: hidden; -webkit-user-select: none; user-select: none; -webkit-touch-callout: none; touch-action: pan-x; }
+.keep-tab-active { background: #2a3d45; border-color: #5ab4d6; color: #fff; font-weight: 700; }
+.keep-tab-add { color: #5ab4d6; font-weight: 900; font-size: 1.1rem; padding: 8px 14px; }
+.keep-tab.keep-holding { border-color: #e83535; }
+
+/* long-press: barra de progresso preenchida ao segurar */
+.keep-holdprogress { position: absolute; left: 0; bottom: 0; height: 3px; width: 0; background: #e83535; pointer-events: none; z-index: 1; }
+.keep-note { position: relative; overflow: hidden; -webkit-user-select: none; user-select: none; -webkit-touch-callout: none; }
+.keep-note.keep-holding { background: #241717; }
+
+/* modal genérico (confirmação / action sheet) */
+.keep-modal-backdrop { position: fixed; inset: 0; background: rgba(0,0,0,0.6); display: flex; align-items: center; justify-content: center; z-index: 40; padding: 24px; }
+.keep-modal { background: #1e1e1e; border: 1px solid #333; border-radius: 16px; width: 100%; max-width: 360px; padding: 20px; display: flex; flex-direction: column; gap: 12px; box-shadow: 0 10px 40px rgba(0,0,0,0.5); }
+.keep-modal-title { font-size: 1.15rem; font-weight: 800; color: #fff; }
+.keep-modal-msg { color: #bbb; font-size: 0.92rem; line-height: 1.4; }
+.keep-modal-actions { display: flex; flex-direction: column; gap: 8px; margin-top: 4px; }
+.keep-modal-btn { width: 100%; padding: 13px; font-size: 1rem; font-family: inherit; font-weight: 700; background: #2a2a2a; border: none; border-radius: 12px; color: #eee; cursor: pointer; }
+.keep-modal-btn:hover { background: #333; }
+.keep-modal-btn-primary { background: #2a3d45; color: #fff; }
+.keep-modal-btn-primary:hover { background: #33505c; }
+.keep-modal-btn-danger { background: #e83535; color: #fff; }
+.keep-modal-btn-danger:hover { background: #c72b2b; }

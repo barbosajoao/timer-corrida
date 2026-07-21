@@ -142,6 +142,7 @@
 
   <!-- Passo 3: notas (add + remove) -->
   <div id="keep-notes" class="keep-panel" style="display:none">
+    <div id="keep-tabs" class="keep-tabs"></div>
     <div class="keep-compose">
       <textarea id="keep-new" class="keep-input keep-textarea" rows="2"
                 placeholder="Nova nota…"></textarea>
@@ -152,6 +153,16 @@
     <div class="keep-footer">
       <button id="keep-lock-btn" class="keep-link">Travar</button>
       <button id="keep-logout-btn2" class="keep-link">Sair da conta</button>
+    </div>
+  </div>
+
+  <!-- Modal genérico: confirmação e "action sheet" de grupos -->
+  <div id="keep-modal" class="keep-modal-backdrop" style="display:none">
+    <div class="keep-modal" role="dialog" aria-modal="true">
+      <div id="keep-modal-title" class="keep-modal-title"></div>
+      <div id="keep-modal-msg" class="keep-modal-msg" style="display:none"></div>
+      <input id="keep-modal-input" class="keep-input" style="display:none" autocomplete="off">
+      <div id="keep-modal-actions" class="keep-modal-actions"></div>
     </div>
   </div>
 </div>
