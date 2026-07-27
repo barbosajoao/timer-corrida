@@ -322,6 +322,50 @@ async function decryptAll(raw) {
 function renderAll() {
   renderTabs();
   renderNotesList();
+  migrateOrdersIfNeeded();
+}
+
+// ===================== ORDER: MIGRAÇÃO LAZY + PERSISTÊNCIA =====================
+let migratingOrders = false;
+
+// Detecta grupos cujas notas ainda não têm `order` (contas legadas) e atribui um
+// order sequencial baseado na ordem visual atual (createdAt desc → 0,1,2…),
+// re-cifrando e gravando cada nota afetada. É idempotente: assim que todas as
+// notas do grupo têm order, nada mais é escrito (evita loop com o onSnapshot).
+async function migrateOrdersIfNeeded() {
+  if (migratingOrders || !cryptoKey || !fb || !groups.length) return;
+  const changes = [];
+  for (const g of groups) {
+    const inGroup = grp.notesForGroup(latestNotes, g.id, groups, defaultGroupId);
+    const needs = inGroup.some(n => typeof (n.payload && n.payload.order) !== 'number');
+    if (!needs) continue;
+    // sem order, sortNotesByOrder cai no fallback createdAt desc (mais nova no topo)
+    const sorted = grp.sortNotesByOrder(inGroup);
+    const orders = grp.assignSequentialOrders(sorted);
+    for (const n of sorted) {
+      const cur = n.payload && n.payload.order;
+      if (cur !== orders[n.id]) changes.push({ id: n.id, order: orders[n.id] });
+    }
+  }
+  if (!changes.length) return;
+  migratingOrders = true;
+  try { await persistNoteOrders(changes); }
+  catch (e) { /* offline: será re-tentado no próximo snapshot */ }
+  finally { migratingOrders = false; }
+}
+
+// Re-cifra e grava o novo `order` das notas indicadas (mantém text/groupId).
+async function persistNoteOrders(changes) {
+  const f = fb;
+  for (const ch of changes) {
+    const note = latestNotes.find(n => n.id === ch.id);
+    if (!note || !note.ok) continue; // não mexe em nota que não decifrou
+    const newPayload = { ...note.payload, order: ch.order };
+    const enc = await kc.encrypt(newPayload, cryptoKey);
+    await f.fs.updateDoc(f.fs.doc(f.db, 'notes', OWNER_UID, 'items', ch.id), {
+      ciphertext: enc.ciphertext, iv: enc.iv
+    });
+  }
 }
 
 function renderTabs() {
@@ -354,7 +398,7 @@ function renderNotesList() {
   list.innerHTML = '';
   $('keep-status').textContent = '';
 
-  const items = grp.notesForGroup(latestNotes, activeGroupId, groups, defaultGroupId);
+  const items = grp.sortNotesByOrder(grp.notesForGroup(latestNotes, activeGroupId, groups, defaultGroupId));
   if (!items.length) {
     list.innerHTML = '<div class="keep-empty">Nenhuma nota neste grupo.</div>';
     return;
@@ -363,7 +407,7 @@ function renderNotesList() {
   for (const it of items) {
     const row = document.createElement('div');
     row.className = 'keep-note';
-    row.title = 'Segure para apagar';
+    row.title = 'Segure para opções';
 
     // barra de progresso do long-press (preenche enquanto segura)
     const prog = document.createElement('div');
@@ -374,14 +418,8 @@ function renderNotesList() {
     body.className = 'keep-note-text' + (it.ok ? '' : ' keep-note-undecipherable');
     body.textContent = it.payload.text;
 
-    const dateEl = document.createElement('div');
-    dateEl.className = 'keep-note-date';
-    const ts = it.createdAt && it.createdAt.toDate ? it.createdAt.toDate() : null;
-    dateEl.textContent = ts ? ts.toLocaleString('pt-BR') : '(sincronizando…)';
-    body.appendChild(dateEl);
-
     row.appendChild(body);
-    attachLongPress(row, { onTrigger: () => confirmDeleteNote(it) });
+    attachLongPress(row, { onTrigger: () => noteActionSheet(it) });
     list.appendChild(row);
   }
 }
@@ -396,15 +434,87 @@ function confirmDeleteNote(it) {
   });
 }
 
+// Action sheet da nota (long-press): mover na ordem, apagar.
+function noteActionSheet(it) {
+  const gid = grp.resolveEffectiveGroupId(it.payload, groups, defaultGroupId);
+  const sorted = grp.sortNotesByOrder(grp.notesForGroup(latestNotes, gid, groups, defaultGroupId));
+  const idx = sorted.findIndex(n => n.id === it.id);
+  const actions = [];
+  actions.push({ label: 'Editar', onClick: () => { closeModal(); editNoteFlow(it); } });
+  if (idx > 0) {
+    actions.push({ label: '↑ Mover para cima', onClick: () => { closeModal(); moveNoteBy(it, 'up'); } });
+  }
+  if (idx > -1 && idx < sorted.length - 1) {
+    actions.push({ label: '↓ Mover para baixo', onClick: () => { closeModal(); moveNoteBy(it, 'down'); } });
+  }
+  actions.push({ label: 'Apagar', danger: true, onClick: () => { closeModal(); confirmDeleteNote(it); } });
+  actions.push({ label: 'Fechar', onClick: () => closeModal() });
+  openModal({
+    title: 'Nota',
+    message: grp.truncateSnippet(it.payload.text, 60),
+    actions
+  });
+}
+
+function moveNoteBy(it, direction) {
+  let changes;
+  try { changes = grp.moveNote(latestNotes, it.id, direction, groups, defaultGroupId); }
+  catch (e) { $('keep-status').textContent = e.message; return; }
+  if (!changes.length) return; // já no extremo
+  // atualiza otimista o estado local para refletir na hora, depois persiste.
+  for (const ch of changes) {
+    const n = latestNotes.find(x => x.id === ch.id);
+    if (n) n.payload = { ...n.payload, order: ch.order };
+  }
+  renderNotesList();
+  persistNoteOrders(changes).catch(err => { $('keep-status').textContent = 'Erro ao reordenar: ' + (err.code || err); });
+}
+
+// Editar o texto de uma nota (mesmo esquema do renomear grupo, mas multilinha).
+// Mantém groupId e order; só troca o texto. Re-cifra e atualiza o doc.
+function editNoteFlow(it) {
+  if (!it.ok) { infoDialog('Não é possível editar', 'Esta nota não pôde ser decifrada.'); return; }
+  openModal({
+    title: 'Editar nota',
+    input: { multiline: true, placeholder: 'Texto da nota', value: it.payload.text || '' },
+    actions: [
+      { label: 'Cancelar', onClick: () => closeModal() },
+      { label: 'Salvar', primary: true, onClick: (val) => {
+          const text = (val || '').trim();
+          if (!text) { modalError('A nota não pode ficar vazia.'); return; }
+          if (text === (it.payload.text || '')) { closeModal(); return; } // sem mudança
+          closeModal();
+          saveNoteEdit(it, text);
+        } }
+    ]
+  });
+}
+
+function saveNoteEdit(it, text) {
+  const f = fb;
+  const newPayload = { ...it.payload, text };
+  // update otimista para refletir na hora
+  const local = latestNotes.find(n => n.id === it.id);
+  if (local) local.payload = newPayload;
+  renderNotesList();
+  kc.encrypt(newPayload, cryptoKey).then(enc =>
+    f.fs.updateDoc(f.fs.doc(f.db, 'notes', OWNER_UID, 'items', it.id), {
+      ciphertext: enc.ciphertext, iv: enc.iv
+    })
+  ).catch(err => { $('keep-status').textContent = 'Erro ao editar: ' + (err.code || err); });
+}
+
 function addNote() {
   const ta = $('keep-new');
   const text = ta.value.trim();
   if (!text || !cryptoKey) return;
   const f = fb;
   const gid = activeGroupId || defaultGroupId;
+  // order = max do grupo + 1: a nova nota entra no FINAL da lista.
+  const order = grp.nextOrderForGroup(latestNotes, gid, groups, defaultGroupId);
   // não bloqueia a UI: offline, a escrita entra em fila e o onSnapshot já
   // mostra a nota a partir do cache local (latency compensation).
-  kc.encrypt({ text, groupId: gid }, cryptoKey).then(payload => {
+  kc.encrypt({ text, groupId: gid, order }, cryptoKey).then(payload => {
     const col = f.fs.collection(f.db, 'notes', OWNER_UID, 'items');
     return f.fs.addDoc(col, {
       ciphertext: payload.ciphertext,
@@ -469,15 +579,32 @@ function renameGroupFlow(g) {
 function groupActionSheet(g) {
   const counts = grp.countNotesByGroup(latestNotes, groups, defaultGroupId);
   const count = counts[g.id] || 0;
+  const idx = groups.findIndex(x => x.id === g.id);
+  const actions = [
+    { label: 'Renomear', onClick: () => { closeModal(); renameGroupFlow(g); } }
+  ];
+  if (idx > 0) {
+    actions.push({ label: '↑ Mover para cima', onClick: () => { closeModal(); moveGroupBy(g, 'up'); } });
+  }
+  if (idx > -1 && idx < groups.length - 1) {
+    actions.push({ label: '↓ Mover para baixo', onClick: () => { closeModal(); moveGroupBy(g, 'down'); } });
+  }
+  actions.push({ label: 'Apagar', danger: true, onClick: () => { closeModal(); deleteGroupFlow(g); } });
+  actions.push({ label: 'Fechar', onClick: () => closeModal() });
   openModal({
     title: g.name,
     message: count > 0 ? `${count} nota(s) neste grupo.` : 'Grupo vazio.',
-    actions: [
-      { label: 'Renomear', onClick: () => { closeModal(); renameGroupFlow(g); } },
-      { label: 'Apagar', danger: true, onClick: () => { closeModal(); deleteGroupFlow(g); } },
-      { label: 'Fechar', onClick: () => closeModal() }
-    ]
+    actions
   });
+}
+
+function moveGroupBy(g, direction) {
+  let next;
+  try { next = grp.moveGroup(groups, g.id, direction); }
+  catch (e) { $('keep-status').textContent = e.message; return; }
+  groups = next;
+  renderAll();
+  persistGroups().catch(err => { $('keep-status').textContent = 'Erro ao salvar grupo: ' + (err.code || err); });
 }
 
 function deleteGroupFlow(g) {
@@ -571,21 +698,33 @@ function openModal({ title, message = '', input = null, actions = [] }) {
   msgEl.textContent = message || '';
   msgEl.style.display = message ? 'block' : 'none';
 
-  const inp = $('keep-modal-input');
+  const single = $('keep-modal-input');
+  const multi = $('keep-modal-textarea');
+  const field = input && input.multiline ? multi : single;
+  const other = input && input.multiline ? single : multi;
+
   if (input) {
-    inp.style.display = 'block';
-    inp.placeholder = input.placeholder || '';
-    inp.value = input.value || '';
-    inp.onkeydown = e => {
-      if (e.key === 'Enter') {
+    other.style.display = 'none';
+    other.value = '';
+    other.onkeydown = null;
+    field.style.display = 'block';
+    if ('placeholder' in field) field.placeholder = input.placeholder || '';
+    field.value = input.value || '';
+    field.onkeydown = e => {
+      // no campo de uma linha, Enter confirma; no multilinha, Enter quebra linha
+      // (confirma só pelo botão) — Ctrl/Cmd+Enter também confirma.
+      const submitByKey = input.multiline
+        ? (e.key === 'Enter' && (e.ctrlKey || e.metaKey))
+        : (e.key === 'Enter');
+      if (submitByKey) {
+        e.preventDefault();
         const primary = actions.find(a => a.primary) || actions[actions.length - 1];
-        if (primary && primary.onClick) primary.onClick(inp.value);
+        if (primary && primary.onClick) primary.onClick(field.value);
       }
     };
   } else {
-    inp.style.display = 'none';
-    inp.value = '';
-    inp.onkeydown = null;
+    single.style.display = 'none'; single.value = ''; single.onkeydown = null;
+    multi.style.display = 'none'; multi.value = ''; multi.onkeydown = null;
   }
 
   const actionsEl = $('keep-modal-actions');
@@ -596,21 +735,23 @@ function openModal({ title, message = '', input = null, actions = [] }) {
     b.className = 'keep-modal-btn'
       + (a.danger ? ' keep-modal-btn-danger' : '')
       + (a.primary ? ' keep-modal-btn-primary' : '');
-    b.onclick = () => { if (a.onClick) a.onClick(inp.value); else closeModal(); };
+    b.onclick = () => { if (a.onClick) a.onClick(field ? field.value : ''); else closeModal(); };
     actionsEl.appendChild(b);
   }
 
   $('keep-modal').style.display = 'flex';
-  if (input) setTimeout(() => { try { inp.focus(); inp.select(); } catch (e) {} }, 50);
+  if (input) setTimeout(() => { try { field.focus(); field.select(); } catch (e) {} }, 50);
 }
 
 function closeModal() {
   $('keep-modal').style.display = 'none';
   $('keep-modal-actions').innerHTML = '';
-  const inp = $('keep-modal-input');
-  inp.style.display = 'none';
-  inp.value = '';
-  inp.onkeydown = null;
+  for (const id of ['keep-modal-input', 'keep-modal-textarea']) {
+    const el = $(id);
+    el.style.display = 'none';
+    el.value = '';
+    el.onkeydown = null;
+  }
 }
 
 function modalError(msg) {
@@ -633,30 +774,6 @@ function infoDialog(title, message) {
   openModal({ title, message, actions: [{ label: 'Entendi', onClick: () => closeModal() }] });
 }
 
-// ===================== TRAVAR / SAIR =====================
-function lock() {
-  cryptoKey = null;
-  localStorage.removeItem(LS_KEY);
-  if (unsubNotes) { unsubNotes(); unsubNotes = null; }
-  if (unsubOwner) { unsubOwner(); unsubOwner = null; }
-  groups = []; defaultGroupId = null; activeGroupId = null; latestNotes = [];
-  route();
-}
-
-async function logout() {
-  if (unsubNotes) { unsubNotes(); unsubNotes = null; }
-  if (unsubOwner) { unsubOwner(); unsubOwner = null; }
-  cryptoKey = null;
-  groups = []; defaultGroupId = null; activeGroupId = null; latestNotes = [];
-  localStorage.removeItem(LS_KEY);
-  try {
-    const f = await ensureFirebase();
-    await f.auth.signOut(f.authInst);
-  } catch (e) { /* offline: segue */ }
-  currentUser = null;
-  route();
-}
-
 // ===================== INIT =====================
 function boot() {
   wireSecretGesture();
@@ -665,9 +782,6 @@ function boot() {
   $('keep-login-btn').onclick = doLogin;
   $('keep-unlock-btn').onclick = doUnlock;
   $('keep-add-btn').onclick = addNote;
-  $('keep-lock-btn').onclick = lock;
-  $('keep-logout-btn').onclick = logout;
-  $('keep-logout-btn2').onclick = logout;
 
   // Enter para enviar nos campos de senha
   $('keep-password').addEventListener('keydown', e => { if (e.key === 'Enter') doLogin(); });

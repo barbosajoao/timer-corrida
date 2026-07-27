@@ -80,6 +80,21 @@
       const rem2 = g.removeGroup(list, def, { noteCountsById: { [def]: 0 }, defaultId: def });
       assert(rem2.list.length === 1 && rem2.defaultId === trabId, 'removeGroup reatribui defaultId ao remover o padrão');
 
+      // moveGroup — reordenação
+      {
+        const a = { id: 'a', name: 'A' }, b = { id: 'b', name: 'B' }, c = { id: 'c', name: 'C' };
+        const base = [a, b, c];
+        const up = g.moveGroup(base, 'b', 'up');
+        assert(up.map(x => x.id).join('') === 'bac', 'moveGroup up troca com o anterior');
+        const down = g.moveGroup(base, 'b', 'down');
+        assert(down.map(x => x.id).join('') === 'acb', 'moveGroup down troca com o próximo');
+        assert(base.map(x => x.id).join('') === 'abc', 'moveGroup não muta a original');
+        assert(g.moveGroup(base, 'a', 'up').map(x => x.id).join('') === 'abc', 'moveGroup up no primeiro é noop');
+        assert(g.moveGroup(base, 'c', 'down').map(x => x.id).join('') === 'abc', 'moveGroup down no último é noop');
+        throws(() => g.moveGroup(base, 'zzz', 'up'), 'moveGroup lança em id inexistente');
+        throws(() => g.moveGroup(base, 'a', 'left'), 'moveGroup lança em direção inválida');
+      }
+
       // resolveEffectiveGroupId
       const groups = [{ id: 'g1', name: 'Geral' }, { id: 'g2', name: 'Trabalho' }];
       assert(g.resolveEffectiveGroupId({ text: 'x', groupId: 'g2' }, groups, 'g1') === 'g2',
@@ -106,6 +121,46 @@
       assert(g.truncateSnippet('a'.repeat(50), 10).length === 11 && g.truncateSnippet('a'.repeat(50), 10).endsWith('…'),
         'truncateSnippet trunca e adiciona reticências');
       assert(g.truncateSnippet('  multi\n  espaço  ') === 'multi espaço', 'truncateSnippet normaliza espaços');
+
+      // ===== ordenação manual de notas =====
+      {
+        const groups2 = [{ id: 'g1', name: 'G1' }, { id: 'g2', name: 'G2' }];
+        const notes2 = [
+          { id: 'n1', payload: { text: 'a', groupId: 'g1', order: 0 }, createdAt: { seconds: 10 } },
+          { id: 'n2', payload: { text: 'b', groupId: 'g1', order: 2 }, createdAt: { seconds: 20 } },
+          { id: 'n3', payload: { text: 'c', groupId: 'g2', order: 5 }, createdAt: { seconds: 30 } },
+        ];
+        assert(g.nextOrderForGroup(notes2, 'g1', groups2, 'g1') === 3, 'nextOrderForGroup = max+1 no grupo');
+        assert(g.nextOrderForGroup(notes2, 'g2', groups2, 'g1') === 6, 'nextOrderForGroup g2 = max+1');
+        assert(g.nextOrderForGroup([], 'g1', groups2, 'g1') === 0, 'nextOrderForGroup vazio = 0');
+
+        const unsorted = [
+          { id: 'x2', payload: { order: 2 }, createdAt: { seconds: 5 } },
+          { id: 'x0', payload: { order: 0 }, createdAt: { seconds: 1 } },
+          { id: 'x1', payload: { order: 1 }, createdAt: { seconds: 3 } },
+        ];
+        assert(g.sortNotesByOrder(unsorted).map(n => n.id).join('') === 'x0x1x2', 'sortNotesByOrder crescente por order');
+        assert(unsorted.map(n => n.id).join('') === 'x2x0x1', 'sortNotesByOrder não muta a original');
+        const noOrder = [
+          { id: 'b', payload: {}, createdAt: { seconds: 20 } },
+          { id: 'a', payload: {}, createdAt: { seconds: 10 } },
+        ];
+        assert(g.sortNotesByOrder(noOrder).map(n => n.id).join('') === 'ba', 'sortNotesByOrder fallback createdAt desc (mais nova primeiro)');
+
+        const seq = g.assignSequentialOrders([{ id: 'p' }, { id: 'q' }, { id: 'r' }]);
+        assert(JSON.stringify(seq) === JSON.stringify({ p: 0, q: 1, r: 2 }), 'assignSequentialOrders sequência 0..n');
+
+        const mvUp = g.moveNote(notes2, 'n2', 'up', groups2, 'g1');
+        const mUp = {}; mvUp.forEach(m => mUp[m.id] = m.order);
+        assert(mUp['n2'] < mUp['n1'], 'moveNote up: n2 fica antes de n1');
+        const mvDown = g.moveNote(notes2, 'n1', 'down', groups2, 'g1');
+        const mDown = {}; mvDown.forEach(m => mDown[m.id] = m.order);
+        assert(mDown['n1'] > mDown['n2'], 'moveNote down: n1 fica depois de n2');
+        assert(g.moveNote(notes2, 'n1', 'up', groups2, 'g1').length === 0, 'moveNote up no primeiro é noop');
+        assert(g.moveNote(notes2, 'n2', 'down', groups2, 'g1').length === 0, 'moveNote down no último é noop');
+        throws(() => g.moveNote(notes2, 'zzz', 'up', groups2, 'g1'), 'moveNote lança em id inexistente');
+        throws(() => g.moveNote(notes2, 'n1', 'left', groups2, 'g1'), 'moveNote lança em direção inválida');
+      }
 
       const summary = document.createElement('h2');
       summary.className = fail === 0 ? 'ok' : 'fail';

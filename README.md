@@ -169,18 +169,20 @@ gesto verá as notas (o bloqueio de tela do celular é a defesa nesse caso).
    outros aparelhos, digite a MESMA senha para ler as notas).
 4. **Adicionar** notas e organizá-las em **grupos (abas)** — a sincronização é
    em tempo real entre celular e PC.
-5. **Travar** limpa a chave cacheada (pede a senha de novo); **Sair** desloga.
 
 ### Grupos (abas) e exclusão por long-press
 - **Abas de grupos** aparecem no topo da tela de notas. Cada nota pertence a
   **um** grupo; a aba ativa filtra a lista e é onde novas notas são criadas.
 - **Criar grupo:** toque no botão **+** ao fim das abas e informe o nome.
 - **Gerenciar grupo:** **segure** (long-press) a aba para abrir o menu com
-  **Renomear** e **Apagar**. Um grupo só pode ser apagado quando está **vazio**
-  (esvazie antes), e sempre resta pelo menos um grupo.
-- **Apagar nota:** **segure** a nota (~0,7s) até completar a barrinha; abre uma
-  confirmação mostrando o começo do texto. Isso evita apagões acidentais —
-  substitui o antigo "✕". Funciona igual no celular (toque) e no PC (mouse).
+  **Renomear**, **Mover para cima/baixo** (reordena as abas) e **Apagar**. Um
+  grupo só pode ser apagado quando está **vazio** (esvazie antes), e sempre
+  resta pelo menos um grupo.
+- **Opções da nota:** **segure** a nota (~0,7s) até completar a barrinha; abre
+  um menu com **Editar** (altera o texto), **Mover para cima/baixo** (reordena
+  dentro do grupo) e **Apagar** (pede confirmação mostrando o começo do texto).
+  Isso evita apagões acidentais. Funciona igual no celular (toque) e no PC
+  (mouse). Notas novas entram no **final** da lista do grupo.
 - **Migração:** na primeira abertura com esta versão, um grupo **"Geral"** é
   criado automaticamente e as notas já existentes aparecem nele (sem reescrever
   os dados; notas sem grupo são resolvidas para o grupo padrão em tempo de

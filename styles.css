@@ -127,10 +127,8 @@ body { background: #111; color: #fff; font-family: sans-serif; height: 100dvh; d
 .keep-list { flex: 1 1 0; overflow-y: auto; display: flex; flex-direction: column; gap: 8px; margin-top: 4px; }
 .keep-note { background: #1c1c1c; border-radius: 12px; padding: 14px 14px 14px 16px; display: flex; align-items: flex-start; gap: 10px; }
 .keep-note-text { flex: 1 1 0; white-space: pre-wrap; word-break: break-word; font-size: 0.98rem; line-height: 1.35; }
-.keep-note-date { color: #666; font-size: 0.72rem; margin-top: 6px; }
 .keep-note-undecipherable { color: #ff6b6b; font-style: italic; }
 .keep-empty { color: #555; text-align: center; margin-top: 40px; }
-.keep-footer { display: flex; justify-content: space-between; flex-shrink: 0; padding-top: 8px; }
 
 /* abas de grupos */
 .keep-tabs { display: flex; gap: 6px; overflow-x: auto; flex-shrink: 0; padding-bottom: 6px; -webkit-overflow-scrolling: touch; scrollbar-width: thin; }

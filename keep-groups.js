@@ -77,6 +77,109 @@ export function removeGroup(list, id, { noteCountsById = {}, defaultId = null } 
   return { list: arr, defaultId: newDefaultId };
 }
 
+// Move um grupo uma posição para cima ('up') ou para baixo ('down'), trocando
+// de lugar com o vizinho. Retorna nova lista (não muta a original). Se o grupo
+// já estiver no extremo correspondente, retorna a lista inalterada (noop).
+// Lança se o id não existir ou a direção for inválida.
+export function moveGroup(list, id, direction) {
+  const arr = Array.isArray(list) ? list.slice() : [];
+  if (direction !== 'up' && direction !== 'down') {
+    throw new Error('Direção inválida.');
+  }
+  const idx = arr.findIndex(g => g.id === id);
+  if (idx === -1) throw new Error('Grupo não encontrado.');
+  const target = direction === 'up' ? idx - 1 : idx + 1;
+  if (target < 0 || target >= arr.length) return arr; // já no extremo: noop
+  [arr[idx], arr[target]] = [arr[target], arr[idx]];
+  return arr;
+}
+
+// ===================== ORDENAÇÃO MANUAL DE NOTAS =====================
+// As notas têm um campo numérico `order` (dentro do payload cifrado), escopado
+// POR GRUPO: order menor = aparece mais no topo. Como o campo é cifrado, o
+// Firestore não consegue ordenar por ele — a ordenação é feita em memória aqui.
+
+// Extrai o `order` numérico de uma nota, ou null se ausente/ inválido.
+function orderOf(note) {
+  const o = note && note.payload && note.payload.order;
+  return typeof o === 'number' && isFinite(o) ? o : null;
+}
+
+// Converte createdAt (Timestamp do Firestore, {seconds} ou null) em ms para
+// desempate estável. Retorna 0 quando ausente.
+function tsMillis(note) {
+  const c = note && note.createdAt;
+  if (!c) return 0;
+  if (typeof c.toMillis === 'function') { try { return c.toMillis(); } catch (e) {} }
+  if (typeof c.seconds === 'number') return c.seconds * 1000;
+  if (c instanceof Date) return c.getTime();
+  return 0;
+}
+
+// Ordena notas para exibição (não muta a original):
+//  - notas com `order` vêm ordenadas de forma crescente (order 0 no topo);
+//  - empate de order (ou ausência) desempata por createdAt DESCENDENTE
+//    (mais nova primeiro), preservando o comportamento visual anterior à
+//    migração (a lista era orderBy('createdAt','desc')).
+export function sortNotesByOrder(notes) {
+  const arr = Array.isArray(notes) ? notes.slice() : [];
+  arr.sort((a, b) => {
+    const ao = orderOf(a), bo = orderOf(b);
+    if (ao != null && bo != null) {
+      if (ao !== bo) return ao - bo;
+      return tsMillis(b) - tsMillis(a);
+    }
+    if (ao != null) return -1;              // com order antes das sem order
+    if (bo != null) return 1;
+    return tsMillis(b) - tsMillis(a);       // ambas sem order: mais nova primeiro
+  });
+  return arr;
+}
+
+// Próximo `order` para uma nota nova no grupo: max(order do grupo) + 1, de modo
+// que a nova nota entre no FINAL da lista. Retorna 0 se o grupo estiver vazio.
+export function nextOrderForGroup(notes, groupId, groups, defaultId) {
+  const inGroup = notesForGroup(notes, groupId, groups, defaultId);
+  let max = -1;
+  for (const n of inGroup) {
+    const o = orderOf(n);
+    if (o != null && o > max) max = o;
+  }
+  return max + 1;
+}
+
+// Dado um array de notas JÁ na ordem desejada, retorna um mapa
+// { [noteId]: orderSequencial } com 0,1,2,… Usado na migração lazy e ao mover.
+export function assignSequentialOrders(orderedNotes) {
+  const map = {};
+  (orderedNotes || []).forEach((n, i) => { map[n.id] = i; });
+  return map;
+}
+
+// Move uma nota uma posição para cima/baixo DENTRO do seu grupo efetivo.
+// Retorna um array de mutações [{ id, order }] apenas para as notas cujo `order`
+// mudou (renormaliza a sequência do grupo para 0..n, corrigindo lacunas).
+// Retorna [] se a nota já estiver no extremo (noop). Lança em id/direção inválidos.
+export function moveNote(notes, noteId, direction, groups, defaultId) {
+  if (direction !== 'up' && direction !== 'down') throw new Error('Direção inválida.');
+  const note = (notes || []).find(n => n.id === noteId);
+  if (!note) throw new Error('Nota não encontrada.');
+  const gid = resolveEffectiveGroupId(note.payload, groups, defaultId);
+  const inGroup = sortNotesByOrder(notesForGroup(notes, gid, groups, defaultId));
+  const idx = inGroup.findIndex(n => n.id === noteId);
+  const target = direction === 'up' ? idx - 1 : idx + 1;
+  if (target < 0 || target >= inGroup.length) return []; // extremo: noop
+
+  const arr = inGroup.slice();
+  [arr[idx], arr[target]] = [arr[target], arr[idx]];
+  const orders = assignSequentialOrders(arr);
+  const changes = [];
+  for (const n of arr) {
+    if (orderOf(n) !== orders[n.id]) changes.push({ id: n.id, order: orders[n.id] });
+  }
+  return changes;
+}
+
 // Resolve o grupo EFETIVO de uma nota decifrada:
 //  - usa notePayload.groupId se ele apontar para um grupo existente;
 //  - senão (ausente ou apontando para grupo removido) cai no defaultId.
