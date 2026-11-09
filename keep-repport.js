@@ -17,20 +17,35 @@ import * as kc from './keep-crypto.js';
 //
 // text: conteúdo da entrada (string, será aparado)
 // tag: tag selecionada ('psi' ou 'argue', opcional)
+// dateYYYYMMDD: data da entrada em formato YYYY-MM-DD (opcional, usa hoje se não fornecida)
 // cryptoKey: CryptoKey AES-GCM para cifrar E2E
 // fb: objeto { db, fs, authInst } do Firebase
 // ownerUid: UID do proprietário (para path da sub-collection)
-export async function addRepport(text, tag, cryptoKey, fb, ownerUid) {
+export async function addRepport(text, tag, dateYYYYMMDD, cryptoKey, fb, ownerUid) {
   const content = String(text == null ? '' : text).trim();
   if (!content) throw new Error('O conteúdo do repport não pode ser vazio.');
   if (!cryptoKey) throw new Error('Chave de criptografia não disponível.');
   if (!fb || !fb.db || !fb.fs) throw new Error('Firebase não inicializado.');
   if (!ownerUid) throw new Error('UID do proprietário não disponível.');
 
-  // Payload cifrado: { text, tag (opcional), timestamp }
+  // Calcular timestamp da data
+  let timestamp;
+  if (dateYYYYMMDD) {
+    // Parsear data em formato YYYY-MM-DD e usar início do dia (00:00:00 no timezone local)
+    const parts = dateYYYYMMDD.split('-');
+    const date = new Date(parseInt(parts[0]), parseInt(parts[1]) - 1, parseInt(parts[2]));
+    timestamp = date.getTime();
+  } else {
+    // Usar hoje no início do dia
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    timestamp = today.getTime();
+  }
+
+  // Payload cifrado: { text, tag (opcional), clientTimestamp }
   const payload = { 
     text: content, 
-    clientTimestamp: Date.now()
+    clientTimestamp: timestamp
   };
   
   // Adiciona tag se fornecida

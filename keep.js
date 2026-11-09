@@ -42,6 +42,7 @@ let creatingDefault = false;   // trava contra criar "Geral" em duplicidade
 
 // estado de repport
 let selectedRepportTag = null; // tag selecionada ('psi', 'argue', ou null)
+let selectedRepportDate = null; // data selecionada (YYYY-MM-DD ou null para hoje)
 
 // ===================== GESTO SECRETO =====================
 let tapCount = 0, tapTimer = null;
@@ -421,16 +422,19 @@ function renderNotesList() {
   $('keep-status').textContent = '';
   
   const tagsEl = $('keep-repport-tags');
+  const dateEl = $('keep-repport-date');
   
-  // Se a aba Repport está ativa, mostra tags e placeholder explicativo (write-only)
+  // Se a aba Repport está ativa, mostra tags, date input e placeholder explicativo (write-only)
   if (activeGroupId === REPPORT_TAB_ID) {
     if (tagsEl) tagsEl.style.display = 'flex';
+    if (dateEl) dateEl.style.display = 'flex';
     list.innerHTML = '<div class="keep-empty">🔒 Repport é write-only.<br>As entradas são salvas cifradas e não aparecem aqui.<br>Use o script de leitura no computador para acessá-las.</div>';
     return;
   }
   
-  // Abas normais: esconde tags, mostra as notas do grupo
+  // Abas normais: esconde tags e date input, mostra as notas do grupo
   if (tagsEl) tagsEl.style.display = 'none';
+  if (dateEl) dateEl.style.display = 'none';
   
   const items = grp.sortNotesByOrder(grp.notesForGroup(latestNotes, activeGroupId, groups, defaultGroupId));
   if (!items.length) {
@@ -579,12 +583,18 @@ function addRepport() {
   const btn = $('keep-add-btn');
   if (btn) btn.disabled = true;
   
-  rep.addRepport(text, selectedRepportTag, cryptoKey, fb, OWNER_UID)
+  rep.addRepport(text, selectedRepportTag, selectedRepportDate, cryptoKey, fb, OWNER_UID)
     .then(() => {
       ta.value = '';
+      // Limpar data selecionada após salvar
+      const dateInput = $('keep-date-input');
+      if (dateInput) dateInput.value = '';
+      selectedRepportDate = null;
+      
       // Feedback visual breve
       const tagInfo = selectedRepportTag ? ` [${selectedRepportTag}]` : '';
-      $('keep-status').textContent = `✓ Repport salvo${tagInfo} (cifrado)`;
+      const dateInfo = selectedRepportDate ? ` em ${selectedRepportDate}` : '';
+      $('keep-status').textContent = `✓ Repport salvo${tagInfo}${dateInfo} (cifrado)`;
       setTimeout(() => { $('keep-status').textContent = ''; }, 2000);
     })
     .catch(err => {
@@ -862,6 +872,14 @@ function boot() {
   const tagArgue = $('keep-tag-argue');
   if (tagPsi) tagPsi.onclick = () => selectRepportTag('psi');
   if (tagArgue) tagArgue.onclick = () => selectRepportTag('argue');
+
+  // Event listener para data do Repport
+  const dateInput = $('keep-date-input');
+  if (dateInput) {
+    dateInput.addEventListener('change', e => {
+      selectedRepportDate = e.target.value || null;
+    });
+  }
 
   // clicar fora (no backdrop) fecha o modal
   const modal = $('keep-modal');

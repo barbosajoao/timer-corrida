@@ -218,3 +218,51 @@ body { background: #111; color: #fff; font-family: sans-serif; height: 100dvh; d
   background: linear-gradient(135deg, #334248 0%, #432a2e 100%);
 }
 
+/* Seletor de data do Repport */
+.keep-repport-date {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+
+.keep-repport-date label {
+  font-size: 0.85rem;
+  color: #999;
+  font-weight: 500;
+}
+
+.keep-repport-date input[type="date"] {
+  padding: 10px 12px;
+  font-size: 0.95rem;
+  background: #2a2a2a;
+  border: 1px solid #3a3a3a;
+  border-radius: 6px;
+  color: #e0e0e0;
+  font-family: inherit;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.keep-repport-date input[type="date"]:hover {
+  background: #333;
+  border-color: #444;
+}
+
+.keep-repport-date input[type="date"]:focus {
+  outline: none;
+  border-color: #4fc3f7;
+  box-shadow: 0 0 8px rgba(79, 195, 247, 0.2);
+}
+
+/* Color scheme para o calendário do date input */
+.keep-repport-date input[type="date"]::-webkit-calendar-picker-indicator {
+  cursor: pointer;
+  opacity: 0.6;
+  transition: opacity 0.2s;
+}
+
+.keep-repport-date input[type="date"]:hover::-webkit-calendar-picker-indicator {
+  opacity: 1;
+}
+
