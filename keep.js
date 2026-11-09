@@ -375,19 +375,6 @@ function renderTabs() {
   if (!bar) return;
   bar.innerHTML = '';
   
-  // Aba fixa REPPORT (sempre primeira)
-  const repportTab = document.createElement('button');
-  repportTab.className = 'keep-tab keep-tab-repport' + (activeGroupId === REPPORT_TAB_ID ? ' keep-tab-active' : '');
-  repportTab.textContent = 'Repport';
-  repportTab.title = 'Diário write-only';
-  repportTab.onclick = () => { if (activeGroupId !== REPPORT_TAB_ID) setActiveGroup(REPPORT_TAB_ID); };
-  bar.appendChild(repportTab);
-  
-  // Separador visual (opcional)
-  const sep = document.createElement('div');
-  sep.className = 'keep-tab-separator';
-  bar.appendChild(sep);
-  
   // Grupos normais
   for (const g of groups) {
     const tab = document.createElement('button');
@@ -401,12 +388,27 @@ function renderTabs() {
     attachLongPress(tab, { onTrigger: () => groupActionSheet(g) });
     bar.appendChild(tab);
   }
+  
+  // Botão de adicionar grupo
   const add = document.createElement('button');
   add.className = 'keep-tab keep-tab-add';
   add.textContent = '+';
   add.setAttribute('aria-label', 'Novo grupo');
   add.onclick = () => createGroupFlow();
   bar.appendChild(add);
+  
+  // Separador visual antes do Repport
+  const sep = document.createElement('div');
+  sep.className = 'keep-tab-separator';
+  bar.appendChild(sep);
+  
+  // Aba fixa REPPORT (sempre última)
+  const repportTab = document.createElement('button');
+  repportTab.className = 'keep-tab keep-tab-repport' + (activeGroupId === REPPORT_TAB_ID ? ' keep-tab-active' : '');
+  repportTab.textContent = 'Repport';
+  repportTab.title = 'Diário write-only';
+  repportTab.onclick = () => { if (activeGroupId !== REPPORT_TAB_ID) setActiveGroup(REPPORT_TAB_ID); };
+  bar.appendChild(repportTab);
 }
 
 function renderNotesList() {
