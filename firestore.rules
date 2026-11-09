@@ -28,6 +28,16 @@ service cloud.firestore {
         allow read, write: if request.auth != null
                            && request.auth.uid == "WTQ2AzWUR5hNJEzvT8cnuYC5M0L2";
       }
+      
+      // Repports (diário write-only): notes/{OWNER_UID}/repports/{repportId}
+      // IMPORTANTE: permite apenas CREATE (write) pela web.
+      // Para ler, use autenticação via SDK no computador com as credenciais admin
+      // ou a mesma conta, mas FORA da interface web (script Node.js).
+      match /repports/{repportId} {
+        allow create: if request.auth != null
+                      && request.auth.uid == "WTQ2AzWUR5hNJEzvT8cnuYC5M0L2";
+        // NÃO há 'allow read' aqui para o client web — forçando write-only na UI
+      }
     }
   }
 }

@@ -15,6 +15,7 @@
 
 import * as kc from './keep-crypto.js';
 import * as grp from './keep-groups.js';
+import * as rep from './keep-repport.js';
 import { firebaseConfig, OWNER_UID, RECAPTCHA_SITE_KEY, isConfigured } from './keep-config.js';
 
 // Versão do SDK do Firebase (CDN). Pode ser atualizada conforme necessário.
@@ -24,6 +25,7 @@ const $ = id => document.getElementById(id);
 const LS_KEY = 'keep_key';            // chave AES cacheada (b64) — conveniência
 const LS_ACTIVE = 'keep_active_group'; // grupo ativo por aparelho
 const VERIFIER_TOKEN = 'keep-verifier-v1';
+const REPPORT_TAB_ID = '__REPPORT__'; // ID especial para identificar a aba Repport
 
 let fb = null;         // { app, db, authInst, auth (módulo), fs (módulo) }
 let cryptoKey = null;  // CryptoKey em memória
@@ -372,6 +374,21 @@ function renderTabs() {
   const bar = $('keep-tabs');
   if (!bar) return;
   bar.innerHTML = '';
+  
+  // Aba fixa REPPORT (sempre primeira)
+  const repportTab = document.createElement('button');
+  repportTab.className = 'keep-tab keep-tab-repport' + (activeGroupId === REPPORT_TAB_ID ? ' keep-tab-active' : '');
+  repportTab.textContent = 'Repport';
+  repportTab.title = 'Diário write-only';
+  repportTab.onclick = () => { if (activeGroupId !== REPPORT_TAB_ID) setActiveGroup(REPPORT_TAB_ID); };
+  bar.appendChild(repportTab);
+  
+  // Separador visual (opcional)
+  const sep = document.createElement('div');
+  sep.className = 'keep-tab-separator';
+  bar.appendChild(sep);
+  
+  // Grupos normais
   for (const g of groups) {
     const tab = document.createElement('button');
     tab.className = 'keep-tab' + (g.id === activeGroupId ? ' keep-tab-active' : '');
@@ -397,7 +414,14 @@ function renderNotesList() {
   if (!list) return;
   list.innerHTML = '';
   $('keep-status').textContent = '';
-
+  
+  // Se a aba Repport está ativa, mostra placeholder explicativo (write-only)
+  if (activeGroupId === REPPORT_TAB_ID) {
+    list.innerHTML = '<div class="keep-empty">🔒 Repport é write-only.<br>As entradas são salvas cifradas e não aparecem aqui.<br>Use o script de leitura no computador para acessá-las.</div>';
+    return;
+  }
+  
+  // Abas normais: mostra as notas do grupo
   const items = grp.sortNotesByOrder(grp.notesForGroup(latestNotes, activeGroupId, groups, defaultGroupId));
   if (!items.length) {
     list.innerHTML = '<div class="keep-empty">Nenhuma nota neste grupo.</div>';
@@ -508,6 +532,14 @@ function addNote() {
   const ta = $('keep-new');
   const text = ta.value.trim();
   if (!text || !cryptoKey) return;
+  
+  // Se a aba Repport está ativa, salva como repport (write-only)
+  if (activeGroupId === REPPORT_TAB_ID) {
+    addRepport();
+    return;
+  }
+  
+  // Salva como nota normal
   const f = fb;
   const gid = activeGroupId || defaultGroupId;
   // order = max do grupo + 1: a nova nota entra no FINAL da lista.
@@ -523,6 +555,33 @@ function addNote() {
     });
   }).catch(err => { $('keep-status').textContent = 'Erro ao salvar: ' + (err.code || err); });
   ta.value = '';
+}
+
+function addRepport() {
+  const ta = $('keep-new');
+  const text = ta.value.trim();
+  if (!text) return;
+  if (!cryptoKey || !fb) {
+    $('keep-status').textContent = 'Não foi possível salvar. Tente novamente.';
+    return;
+  }
+  
+  const btn = $('keep-add-btn');
+  if (btn) btn.disabled = true;
+  
+  rep.addRepport(text, cryptoKey, fb, OWNER_UID)
+    .then(() => {
+      ta.value = '';
+      // Feedback visual breve
+      $('keep-status').textContent = '✓ Repport salvo (cifrado)';
+      setTimeout(() => { $('keep-status').textContent = ''; }, 2000);
+    })
+    .catch(err => {
+      $('keep-status').textContent = 'Erro ao salvar repport: ' + (err.message || err.code || err);
+    })
+    .finally(() => {
+      if (btn) btn.disabled = false;
+    });
 }
 
 function deleteNote(id) {

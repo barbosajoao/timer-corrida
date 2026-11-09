@@ -154,3 +154,28 @@ body { background: #111; color: #fff; font-family: sans-serif; height: 100dvh; d
 .keep-modal-btn-primary:hover { background: #33505c; }
 .keep-modal-btn-danger { background: #e83535; color: #fff; }
 .keep-modal-btn-danger:hover { background: #c72b2b; }
+
+
+/* ===================== REPPORT (write-only) ===================== */
+/* Aba Repport com destaque visual sutil */
+.keep-tab-repport {
+  background: linear-gradient(135deg, #1a2a2e 0%, #2a1a1e 100%);
+  border: 1px solid #4a2a2e;
+  font-weight: 700;
+}
+
+.keep-tab-repport:hover {
+  background: linear-gradient(135deg, #243238 0%, #382428 100%);
+}
+
+.keep-tab-repport.keep-tab-active {
+  background: linear-gradient(135deg, #2a3a3e 0%, #3a2a2e 100%);
+  border-color: #5a3a3e;
+}
+
+/* Separador visual entre aba Repport e abas normais */
+.keep-tab-separator {
+  width: 1px;
+  background: #333;
+  margin: 0 4px;
+}
