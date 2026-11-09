@@ -40,6 +40,9 @@ let activeGroupId = null;
 let latestNotes = [];          // notas já decifradas: [{ id, payload, createdAt, ok }]
 let creatingDefault = false;   // trava contra criar "Geral" em duplicidade
 
+// estado de repport
+let selectedRepportTag = null; // tag selecionada ('psi', 'argue', ou null)
+
 // ===================== GESTO SECRETO =====================
 let tapCount = 0, tapTimer = null;
 
@@ -417,13 +420,18 @@ function renderNotesList() {
   list.innerHTML = '';
   $('keep-status').textContent = '';
   
-  // Se a aba Repport está ativa, mostra placeholder explicativo (write-only)
+  const tagsEl = $('keep-repport-tags');
+  
+  // Se a aba Repport está ativa, mostra tags e placeholder explicativo (write-only)
   if (activeGroupId === REPPORT_TAB_ID) {
+    if (tagsEl) tagsEl.style.display = 'flex';
     list.innerHTML = '<div class="keep-empty">🔒 Repport é write-only.<br>As entradas são salvas cifradas e não aparecem aqui.<br>Use o script de leitura no computador para acessá-las.</div>';
     return;
   }
   
-  // Abas normais: mostra as notas do grupo
+  // Abas normais: esconde tags, mostra as notas do grupo
+  if (tagsEl) tagsEl.style.display = 'none';
+  
   const items = grp.sortNotesByOrder(grp.notesForGroup(latestNotes, activeGroupId, groups, defaultGroupId));
   if (!items.length) {
     list.innerHTML = '<div class="keep-empty">Nenhuma nota neste grupo.</div>';
@@ -571,11 +579,12 @@ function addRepport() {
   const btn = $('keep-add-btn');
   if (btn) btn.disabled = true;
   
-  rep.addRepport(text, cryptoKey, fb, OWNER_UID)
+  rep.addRepport(text, selectedRepportTag, cryptoKey, fb, OWNER_UID)
     .then(() => {
       ta.value = '';
       // Feedback visual breve
-      $('keep-status').textContent = '✓ Repport salvo (cifrado)';
+      const tagInfo = selectedRepportTag ? ` [${selectedRepportTag}]` : '';
+      $('keep-status').textContent = `✓ Repport salvo${tagInfo} (cifrado)`;
       setTimeout(() => { $('keep-status').textContent = ''; }, 2000);
     })
     .catch(err => {
@@ -848,9 +857,36 @@ function boot() {
   $('keep-password').addEventListener('keydown', e => { if (e.key === 'Enter') doLogin(); });
   $('keep-passphrase').addEventListener('keydown', e => { if (e.key === 'Enter') doUnlock(); });
 
+  // Event listeners para tags do Repport
+  const tagPsi = $('keep-tag-psi');
+  const tagArgue = $('keep-tag-argue');
+  if (tagPsi) tagPsi.onclick = () => selectRepportTag('psi');
+  if (tagArgue) tagArgue.onclick = () => selectRepportTag('argue');
+
   // clicar fora (no backdrop) fecha o modal
   const modal = $('keep-modal');
   if (modal) modal.addEventListener('click', e => { if (e.target === modal) closeModal(); });
+}
+
+// Seleciona uma tag do Repport (seleção única)
+function selectRepportTag(tag) {
+  const tagPsi = $('keep-tag-psi');
+  const tagArgue = $('keep-tag-argue');
+  
+  // Se clicar na tag já selecionada, desmarca
+  if (selectedRepportTag === tag) {
+    selectedRepportTag = null;
+    if (tagPsi) tagPsi.classList.remove('keep-tag-active');
+    if (tagArgue) tagArgue.classList.remove('keep-tag-active');
+    return;
+  }
+  
+  // Seleciona a nova tag
+  selectedRepportTag = tag;
+  
+  // Atualiza UI
+  if (tagPsi) tagPsi.classList.toggle('keep-tag-active', tag === 'psi');
+  if (tagArgue) tagArgue.classList.toggle('keep-tag-active', tag === 'argue');
 }
 
 // módulos ES são deferidos: o DOM já está pronto quando este código executa.

@@ -16,18 +16,28 @@ import * as kc from './keep-crypto.js';
 // (ou entra em fila se offline). Não retorna o ID nem permite leitura posterior.
 //
 // text: conteúdo da entrada (string, será aparado)
+// tag: tag selecionada ('psi' ou 'argue', opcional)
 // cryptoKey: CryptoKey AES-GCM para cifrar E2E
 // fb: objeto { db, fs, authInst } do Firebase
 // ownerUid: UID do proprietário (para path da sub-collection)
-export async function addRepport(text, cryptoKey, fb, ownerUid) {
+export async function addRepport(text, tag, cryptoKey, fb, ownerUid) {
   const content = String(text == null ? '' : text).trim();
   if (!content) throw new Error('O conteúdo do repport não pode ser vazio.');
   if (!cryptoKey) throw new Error('Chave de criptografia não disponível.');
   if (!fb || !fb.db || !fb.fs) throw new Error('Firebase não inicializado.');
   if (!ownerUid) throw new Error('UID do proprietário não disponível.');
 
-  // Payload cifrado: { text, timestamp (opcional, para context no computador) }
-  const payload = { text: content, clientTimestamp: Date.now() };
+  // Payload cifrado: { text, tag (opcional), timestamp }
+  const payload = { 
+    text: content, 
+    clientTimestamp: Date.now()
+  };
+  
+  // Adiciona tag se fornecida
+  if (tag) {
+    payload.tag = String(tag).trim();
+  }
+  
   const enc = await kc.encrypt(payload, cryptoKey);
 
   // Persiste na sub-collection isolada repports/
