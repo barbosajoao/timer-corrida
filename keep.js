@@ -15,7 +15,7 @@
 
 import * as kc from './keep-crypto.js';
 import * as grp from './keep-groups.js';
-import * as rep from './keep-repport.js';
+import * as rep from './keep-report.js';
 import { firebaseConfig, OWNER_UID, RECAPTCHA_SITE_KEY, isConfigured } from './keep-config.js';
 
 // Versão do SDK do Firebase (CDN). Pode ser atualizada conforme necessário.
@@ -25,7 +25,7 @@ const $ = id => document.getElementById(id);
 const LS_KEY = 'keep_key';            // chave AES cacheada (b64) — conveniência
 const LS_ACTIVE = 'keep_active_group'; // grupo ativo por aparelho
 const VERIFIER_TOKEN = 'keep-verifier-v1';
-const REPPORT_TAB_ID = '__REPPORT__'; // ID especial para identificar a aba Repport
+const REPORT_TAB_ID = '__REPORT__'; // ID especial para identificar a aba Report
 
 let fb = null;         // { app, db, authInst, auth (módulo), fs (módulo) }
 let cryptoKey = null;  // CryptoKey em memória
@@ -40,9 +40,9 @@ let activeGroupId = null;
 let latestNotes = [];          // notas já decifradas: [{ id, payload, createdAt, ok }]
 let creatingDefault = false;   // trava contra criar "Geral" em duplicidade
 
-// estado de repport
-let selectedRepportTag = null; // tag selecionada ('psi', 'argue', ou null)
-let selectedRepportDate = null; // data selecionada (YYYY-MM-DD ou null para hoje)
+// estado de report
+let selectedReportTag = null; // tag selecionada ('psi', 'argue', ou null)
+let selectedReportDate = null; // data selecionada (YYYY-MM-DD ou null para hoje)
 
 // ===================== GESTO SECRETO =====================
 let tapCount = 0, tapTimer = null;
@@ -393,6 +393,14 @@ function renderTabs() {
     bar.appendChild(tab);
   }
   
+  // Aba fixa REPORT
+  const reportTab = document.createElement('button');
+  reportTab.className = 'keep-tab keep-tab-report' + (activeGroupId === REPORT_TAB_ID ? ' keep-tab-active' : '');
+  reportTab.textContent = 'Report';
+  reportTab.title = 'Diário write-only';
+  reportTab.onclick = () => { if (activeGroupId !== REPORT_TAB_ID) setActiveGroup(REPORT_TAB_ID); };
+  bar.appendChild(reportTab);
+  
   // Botão de adicionar grupo
   const add = document.createElement('button');
   add.className = 'keep-tab keep-tab-add';
@@ -400,19 +408,6 @@ function renderTabs() {
   add.setAttribute('aria-label', 'Novo grupo');
   add.onclick = () => createGroupFlow();
   bar.appendChild(add);
-  
-  // Separador visual antes do Repport
-  const sep = document.createElement('div');
-  sep.className = 'keep-tab-separator';
-  bar.appendChild(sep);
-  
-  // Aba fixa REPPORT (sempre última)
-  const repportTab = document.createElement('button');
-  repportTab.className = 'keep-tab keep-tab-repport' + (activeGroupId === REPPORT_TAB_ID ? ' keep-tab-active' : '');
-  repportTab.textContent = 'Repport';
-  repportTab.title = 'Diário write-only';
-  repportTab.onclick = () => { if (activeGroupId !== REPPORT_TAB_ID) setActiveGroup(REPPORT_TAB_ID); };
-  bar.appendChild(repportTab);
 }
 
 function renderNotesList() {
@@ -421,14 +416,25 @@ function renderNotesList() {
   list.innerHTML = '';
   $('keep-status').textContent = '';
   
-  const tagsEl = $('keep-repport-tags');
-  const dateEl = $('keep-repport-date');
+  const tagsEl = $('keep-report-tags');
+  const dateEl = $('keep-report-date');
   
-  // Se a aba Repport está ativa, mostra tags, date input e placeholder explicativo (write-only)
-  if (activeGroupId === REPPORT_TAB_ID) {
+  // Se a aba Report está ativa, mostra tags e date input
+  if (activeGroupId === REPORT_TAB_ID) {
     if (tagsEl) tagsEl.style.display = 'flex';
     if (dateEl) dateEl.style.display = 'flex';
-    list.innerHTML = '<div class="keep-empty">🔒 Repport é write-only.<br>As entradas são salvas cifradas e não aparecem aqui.<br>Use o script de leitura no computador para acessá-las.</div>';
+    
+    // Inicializar data com hoje
+    const dateInput = $('keep-date-input');
+    if (dateInput) {
+      const today = new Date();
+      const yyyy = today.getFullYear();
+      const mm = String(today.getMonth() + 1).padStart(2, '0');
+      const dd = String(today.getDate()).padStart(2, '0');
+      const todayString = `${yyyy}-${mm}-${dd}`;
+      dateInput.value = todayString;
+      selectedReportDate = todayString;
+    }
     return;
   }
   
@@ -547,9 +553,9 @@ function addNote() {
   const text = ta.value.trim();
   if (!text || !cryptoKey) return;
   
-  // Se a aba Repport está ativa, salva como repport (write-only)
-  if (activeGroupId === REPPORT_TAB_ID) {
-    addRepport();
+  // Se a aba Report está ativa, salva como report (write-only)
+  if (activeGroupId === REPORT_TAB_ID) {
+    addReport();
     return;
   }
   
@@ -571,7 +577,7 @@ function addNote() {
   ta.value = '';
 }
 
-function addRepport() {
+function addReport() {
   const ta = $('keep-new');
   const text = ta.value.trim();
   if (!text) return;
@@ -583,22 +589,22 @@ function addRepport() {
   const btn = $('keep-add-btn');
   if (btn) btn.disabled = true;
   
-  rep.addRepport(text, selectedRepportTag, selectedRepportDate, cryptoKey, fb, OWNER_UID)
+  rep.addReport(text, selectedReportTag, selectedReportDate, cryptoKey, fb, OWNER_UID)
     .then(() => {
       ta.value = '';
       // Limpar data selecionada após salvar
       const dateInput = $('keep-date-input');
       if (dateInput) dateInput.value = '';
-      selectedRepportDate = null;
+      selectedReportDate = null;
       
       // Feedback visual breve
-      const tagInfo = selectedRepportTag ? ` [${selectedRepportTag}]` : '';
-      const dateInfo = selectedRepportDate ? ` em ${selectedRepportDate}` : '';
-      $('keep-status').textContent = `✓ Repport salvo${tagInfo}${dateInfo} (cifrado)`;
+      const tagInfo = selectedReportTag ? ` [${selectedReportTag}]` : '';
+      const dateInfo = selectedReportDate ? ` em ${selectedReportDate}` : '';
+      $('keep-status').textContent = `✓ Report salvo${tagInfo}${dateInfo} (cifrado)`;
       setTimeout(() => { $('keep-status').textContent = ''; }, 2000);
     })
     .catch(err => {
-      $('keep-status').textContent = 'Erro ao salvar repport: ' + (err.message || err.code || err);
+      $('keep-status').textContent = 'Erro ao salvar report: ' + (err.message || err.code || err);
     })
     .finally(() => {
       if (btn) btn.disabled = false;
@@ -867,17 +873,17 @@ function boot() {
   $('keep-password').addEventListener('keydown', e => { if (e.key === 'Enter') doLogin(); });
   $('keep-passphrase').addEventListener('keydown', e => { if (e.key === 'Enter') doUnlock(); });
 
-  // Event listeners para tags do Repport
+  // Event listeners para tags do Report
   const tagPsi = $('keep-tag-psi');
   const tagArgue = $('keep-tag-argue');
-  if (tagPsi) tagPsi.onclick = () => selectRepportTag('psi');
-  if (tagArgue) tagArgue.onclick = () => selectRepportTag('argue');
+  if (tagPsi) tagPsi.onclick = () => selectReportTag('psi');
+  if (tagArgue) tagArgue.onclick = () => selectReportTag('argue');
 
-  // Event listener para data do Repport
+  // Event listener para data do Report
   const dateInput = $('keep-date-input');
   if (dateInput) {
     dateInput.addEventListener('change', e => {
-      selectedRepportDate = e.target.value || null;
+      selectedReportDate = e.target.value || null;
     });
   }
 
@@ -886,21 +892,21 @@ function boot() {
   if (modal) modal.addEventListener('click', e => { if (e.target === modal) closeModal(); });
 }
 
-// Seleciona uma tag do Repport (seleção única)
-function selectRepportTag(tag) {
+// Seleciona uma tag do Report (seleção única)
+function selectReportTag(tag) {
   const tagPsi = $('keep-tag-psi');
   const tagArgue = $('keep-tag-argue');
   
   // Se clicar na tag já selecionada, desmarca
-  if (selectedRepportTag === tag) {
-    selectedRepportTag = null;
+  if (selectedReportTag === tag) {
+    selectedReportTag = null;
     if (tagPsi) tagPsi.classList.remove('keep-tag-active');
     if (tagArgue) tagArgue.classList.remove('keep-tag-active');
     return;
   }
   
   // Seleciona a nova tag
-  selectedRepportTag = tag;
+  selectedReportTag = tag;
   
   // Atualiza UI
   if (tagPsi) tagPsi.classList.toggle('keep-tag-active', tag === 'psi');
